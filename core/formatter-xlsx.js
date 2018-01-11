@@ -16,6 +16,7 @@
  */
 "use strict";
 
+import Formatter from "./formatter";
 import * as Excel from "xlsx";
 
 /**
@@ -23,21 +24,22 @@ import * as Excel from "xlsx";
  * formatting techniques such as XLSX, JSON and CSV as 
  * a first.
  */
-class XLSXFormatter {
+class FormatterXLSX extends Formatter {
 
     /**
      * Construct the Formatter object
      */
     constructor() {
+        super();
 
         let utc = new Date().toJSON().slice(0,10).replace(/-/g, ''); // 2018-01-11 to 20180111
 
         /**
-         * The produced absolute file path
+         * The default filename extension.
          *
-         * @var {string}
+         * @var {String}
          */
-        this.filepath = "";
+        this.extension = "xlsx";
 
         /**
          * The excel worksheet name
@@ -61,41 +63,44 @@ class XLSXFormatter {
         this.workbook = undefined;
 
         /**
-         * The rows array
+         * The Excel worksheet
          *
-         * @var {Array}
+         * @var {object}
          */
-        this.rows = [];
+        this.worksheet = undefined;
     }
 
-    init(filepath) {
-        this.filepath = filepath;
-        this.workbook = { SheetNames: [], Sheets: {} };
-        if (fs.existsSync(this.filepath)) {
-            // read already available workbook.
-            this.workbook = Excel.readFile(this.filepath);
-            this.rows     = Excel.utils.sheet_to_json(ws);
-        }
+    /**
+     * This method will read the data from an Excel workbook.
+     *
+     * @param {String} filePath     Absolute file path with file name.
+     * @return {Formatter}
+     */
+    __fromFile(filePath) {
+        this.workbook  = Excel.readFile(filePath);
+        this.worksheet = this.workbook.Sheets[this.workbook.SheetNames[0]];
+        this.rows      = Excel.utils.sheet_to_json(this.worksheet);
 
         return this;
     }
 
-    write(data) {
-        this.rows.push(data);
-        return this;
-    }
-
-    save() {
+    /**
+     * This method will save the data to an Excel workbook.
+     *
+     * @param {String} filePath     Absolute file path with file name.
+     * @return {Formatter}
+     */
+    __toFile(filePath) {
         var sheet = Excel.utils.json_to_sheet(this.rows);
 
         this.workbook.SheetNames.push(this.sheetName);
         this.workbook.Sheets[wsName[sheetVar]] = sheet;
 
-        Excel.writeFile(this.workbook, this.filepath);
-        return this.filepath;
+        Excel.writeFile(this.workbook, filePath);
+        return this;
     }
 
 }
 
-exports.XLSXFormatter = XLSXFormatter;
-export default XLSXFormatter;
+exports.FormatterXLSX = FormatterXLSX;
+export default FormatterXLSX;

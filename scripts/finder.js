@@ -17,7 +17,8 @@
 "use strict";
 
 import BaseCommand from "../core/command";
-import XLSXFormatter from "../core/xlsx-formatter";
+import FormatterXLSX from "../core/formatter-xlsx";
+import FormatterJSON from "../core/formatter-json";
 import DIMParameters from "../core/dim-parameters";
 import NIS from "./api";
 import NEM from "nem-sdk";
@@ -170,11 +171,18 @@ class Command extends BaseCommand {
                 stringColor: 'yellow'
             });
 
+            let output = [];
+            for (let i = 0, k = Object.keys(self.accounts); i < k.length; i++)
+                output.push(self.accounts[k[i]]);
+
             // EXPORT to file
-            let formatter = new XLSXFormatter();
+            let formatter = new FormatterXLSX();
             formatter.init(filePath)
-                     .write(self.accounts)
+                     .write(output)
                      .save();
+
+            let f2 = new FormatterJSON();
+            f2.init(filePath + ".json").write(output).save();
 
             return this.end();
         })
