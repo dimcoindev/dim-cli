@@ -30,8 +30,7 @@ class XLSXFormatter {
      */
     constructor() {
 
-        let utc = new Date().toJSON().slice(0,10).replace(/-/g,'/') // 2018/01/11
-                                     .split("/").reverse().join("-"); // 11-01-2018
+        let utc = new Date().toJSON().slice(0,10).replace(/-/g, ''); // 2018-01-11 to 20180111
 
         /**
          * The produced absolute file path

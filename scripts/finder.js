@@ -47,8 +47,11 @@ class Command extends BaseCommand {
             "signature": "-h, --help",
             "description": "Print help message about the `dim-cli.js finder` command."
         }, {
-            "signature": "-e, --export <format>",
+            "signature": "-F, --format <format>",
             "description": "Set the export format (defaults to xlsx)."
+        }, {
+            "signature": "-f, --file <filename>",
+            "description": "Set the file name to export to (must also contain the extension). Will be saved to the resources/ folder."
         }];
 
         this.examples = [
@@ -79,6 +82,20 @@ class Command extends BaseCommand {
          * @var {NIS}
          */
         this.api = undefined;
+
+        /**
+         * Store the Per-Level Holders information.
+         *
+         * @var {Object}
+         */
+        this.levels = {"level-1": []};
+
+        /**
+         * The current level being crawled.
+         *
+         * @var {Integer}
+         */
+        this.current = 1;
     }
 
     /**
@@ -89,16 +106,40 @@ class Command extends BaseCommand {
      */
     run(env) {
 
+        this.log("");
+        this.log("DIM Finder (Token Holders Crawler) v" + this.npmPackage.version);
+        this.log("");
+
+        let utc = new Date().toJSON().slice(0,10).replace(/-/g, ''); // 2018-01-11 to 20180111
+
+        // interpret command line arguments
+        let app_path = process.cwd();
+        let path = require("path").basename(__dirname + "/../resources");
+        let name = env.file || "dim-token-holders-" + utc;
+
+        // build absolute export file path (fully qualified file path)
+        let filePath = app_path + "/" + path + "/" + name;
+
+        // now check format to export
         let format  = env.format;
         let formats = {"xlsx": true, "json": true, "csv": true};
         if (!format) {
             format = "xlsx";
         }
 
-        if (!formats.hasOwnProperty(format)) {
+        if (!formats.hasOwnProperty(format) || this.argv == 'help') {
+            // invalid format or help asked
             this.help();
             return this.end();
         }
+
+        // add correct extension for export
+        let ext = new RegExp("\\." + format.toLowerCase() + "$");
+        if (! ext.test(filePath))
+            filePath = filePath + "." + format;
+
+        // `filePath` is now a fully qualified export file name (self-contained path)
+        // Crawler command will now start processing.
 
         let options = this.argv;
         if (!options.network)
@@ -107,13 +148,33 @@ class Command extends BaseCommand {
         this.api = new NIS(this.npmPackage);
         this.api.init(options);
 
+        // get necessary DIM parameters
+        let tokenCreator = this.parameters.getToken().creator;
+        let startAddress = this.api.SDK.model.address.toAddress(tokenCreator, this.parameters.dimNetworkId);
+
+        this.log("Now starting dim:token crawler with address: " + startAddress, "label", true);
+
         // fetch first batch of token holders (starting from mosaic creator)
-        this.startCrawler()
+        this.startCrawler(startAddress)
             .then((totalTokenHolders) => {
 
-            console.log("Done with crawler job..");
-            console.log("");
-            console.log("Total Token Holders found: " + totalTokenHolders);
+            // DONE CRAWLING - pretty print
+            let result = {
+                "allTokenHolders": Object.keys(self.accounts).length,
+                "totalDepth": this.current,
+            };
+
+            let beautified = JSONBeautifier.render(result, {
+                keysColor: 'green',
+                dashColor: 'green',
+                stringColor: 'yellow'
+            });
+
+            // EXPORT to file
+            let formatter = new XLSXFormatter();
+            formatter.init(filePath)
+                     .write(self.accounts)
+                     .save();
 
             return this.end();
         })
@@ -132,34 +193,72 @@ class Command extends BaseCommand {
         process.exit();
     }
 
+    log(message) {
+        console.log(message);
+        return this;
+    }
+
     /**
      * This method will start the dim:token crawler.
      * 
      * @return {Object}
      */
-    startCrawler(forAddress) {
+    startCrawler(forAddress, lvl) {
         let self = this;
 
-        let tokenCreator = this.parameters.getToken().creator;
-        let startAddress = forAddress || NEM.model.address.toAddress(tokenCreator, this.parameters.dimNetworkId);
-        let crawlHolders = [];
+        let level = lvl || 1;
         let totalTokenHolders = 0;
+        let beforeThisLevel = Object.keys(self.storage.accounts).length;
+        //console.log("[READ " + (parseInt(level)) + "] (" + forAddress + ")");
 
-        console.log("Now starting crawler with address: " + startAddress);
+        // prepare storage
+        let nextLevel = parseInt(level) + 1;
+        let currLvlKey = "level-" + parseInt(level);
+        let nextLvlKey = "level-" + (nextLevel);
+        if (! self.levels.hasOwnProperty(nextLvlKey)) {
+            self.levels[nextLvlKey] = [];
+        }
 
         return new Promise(function(resolve, reject) {
             // crawl the first address, then crawl all found holders.
-            self.crawlAddress(startAddress, null)
+            self.crawlAddress(forAddress, null)
                 .then((tokenHolders) => {
 
-                console.log("Done crawling " + startAddress + ", Found: " + tokenHolders.length + " Token Holders..");
-                totalTokenHolders += tokenHolders.length;
+                let levelHolders = Object.keys(tokenHolders).slice(beforeThisLevel);
 
-                //while (tokenHolders.length) {
-                //    let holder = tokenHolders.shift();
-                //    this.startCrawler(holder);
-                //}
-                resolve(totalTokenHolders);
+                // update storage
+                totalTokenHolders += levelHolders.length;
+                self.levels[nextLvlKey] = self.levels[nextLvlKey].concat(levelHolders);
+
+                if (levelHolders.length) {
+                    // found *potential* holders in next level.
+                    self.log("Found " + levelHolders.length + " dim:token Holders (Level " + nextLevel + ")");
+                }
+
+                // check whether there is more token holder on the current level.
+                let nextLvl = parseInt(self.current);
+                if (! self.levels[currLvlKey].length) {
+                    // done with level, move to next.
+                    nextLvl = ++self.current;
+                }
+
+                // move to next level if available
+                currLvlKey = "level-" + parseInt(nextLvl);
+                if (!self.levels.hasOwnProperty(currLvlKey)) {
+                    // no more levels - DONE (BREAK RECURSION).
+                    return resolve(levelHolders.length);
+                }
+
+                let next = self.levels[currLvlKey].shift();
+                if (!next || !next.length) {
+                    // no more entries - DONE (BREAK RECURSION).
+                    return resolve(levelHolders.length);
+                }
+
+                // RECURSION: crawl next token holder
+                return self.startCrawler(next, nextLvl)
+                           .then((holdersByLevel) => resolve(holdersByLevel))
+                           .catch((err) => reject(err));
             })
             .catch((err) => {
                 reject(err);
@@ -173,62 +272,61 @@ class Command extends BaseCommand {
      *
      * @return {Promise}
      */
-    crawlAddress(address, beforeTrxId) {
-        let pageSize = 100;
-        let nextToCrawl = [];
+    crawlAddress(cAddress, beforeTrxId) {
+        let pageSize = 25;
         let self = this;
 
         return new Promise(function(resolve, reject) 
         {
-            self.readTransactions(address, pageSize, beforeTrxId)
-                .then((transactions) => {
-                    let res = self.processTransactions(transactions, pageSize);
+            self.readTransactions(cAddress, beforeTrxId)
+                .then((response) => {
 
-                    // store token holders found in the chunk of transactions
-                    nextToCrawl = nextToCrawl.concat(res.holders);
+                // save the read transactions to avoid re-processing
+                let transactions = response.data;
+                if (!transactions || !transactions.length) {
+                    // account empty
+                    return resolve(self.storage.accounts);
+                }
 
-                    if (false === res.status) {
-                        // done reading transactions
-                        resolve(nextToCrawl);
-                    }
+                let res = self.processTransactions(transactions, pageSize);
 
-                    return self.crawlAddress(address, res.lastId);
-                })
-                .catch((err) => {
-                    reject(err);
-                });
+                if (false === res.status) {
+                    // done reading transactions
+                    return resolve(self.storage.accounts);
+                }
+
+                // continue crawling current address.
+                return self.crawlAddress(cAddress, res.lastId)
+                           .then((acct) => { resolve(acct); })
+                           .catch((err) => { reject(err); });
+            })
+            .catch((err) => {
+                reject(err);
+            });
         });
     }
 
     /**
-     * This method will read a chunk of `pageSize` count of
-     * transactions for the said account with address `address`.
+     * This method will read a chunk  transactions for the 
+     * said account with address `address`.
      * 
      * @param {String} address 
-     * @param {null|Integer} pageSize 
      * @param {null|Integer} beforeTrxId 
      * @return {Promise}
      */
-    readTransactions(address, pageSize, beforeTrxId) {
+    readTransactions(address, beforeTrxId) {
         let self = this;
-
-        // build http query to NIS
-        let query = "address=" + address + "&pageSize=" + (pageSize || 100);
-        if (beforeTrxId)
-            query += "&id=" + beforeTrxId;
 
         // promise request result
         return new Promise(function(resolve, reject) 
         {
-            self.api.apiGet("/account/transfers/outgoing?" + query, undefined, {}, function(nisResp)
-            {
-                let parsed = JSON.parse(nisResp);
-
-                if (parsed.error) {
-                    return reject(parsed);
-                }
-
-                return resolve(parsed);
+            self.api.SDK.com.requests
+                .account.transactions.outgoing(self.api.node, address, null, beforeTrxId)
+                .then((transactions) => {
+                return resolve(transactions);
+            })
+            .catch((err) => {
+                return reject(err);
             });
         });
     }
@@ -276,13 +374,20 @@ class Command extends BaseCommand {
                 continue;
             }
 
+            let recipient = realData.recipient;
+
             // find dim:token in mosaics array.
             for (let j = 0, n = realData.mosaics.length; j < n; j++) {
                 let s = NEM.utils.format.mosaicIdToName(realData.mosaics[j].mosaicId);
-                if ("dim:token" === s) {
+                if ("dim:token" == s) {
+                    if (! this.storage.accounts.hasOwnProperty(recipient))
+                        this.storage.accounts[recipient] = realData.mosaics[j].quantity;
+                    else
+                        this.storage.accounts[recipient] += realData.mosaics[j].quantity;
+
                     // found dim:token OUTPUT: store holder for further crawling.
-                    this.storage.accounts[realData.recipient] = realData.mosaics[j].quantity;
-                    result['holders'].push(realData.recipient);
+                    result['holders'].push(recipient);
+                    break;
                 }
             }
         }
