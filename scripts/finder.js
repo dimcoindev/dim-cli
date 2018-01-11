@@ -74,7 +74,9 @@ class Command extends BaseCommand {
          */
         this.storage = {
             "accounts": {},
-            "transactions": {}
+            "transactions": {},
+            "tokenHolders": {},
+            "levels": {"level-1": []}
         };
 
         /**
@@ -83,13 +85,6 @@ class Command extends BaseCommand {
          * @var {NIS}
          */
         this.api = undefined;
-
-        /**
-         * Store the Per-Level Holders information.
-         *
-         * @var {Object}
-         */
-        this.levels = {"level-1": []};
 
         /**
          * The current level being crawled.
@@ -159,32 +154,49 @@ class Command extends BaseCommand {
         this.startCrawler(startAddress)
             .then((totalTokenHolders) => {
 
-            // DONE CRAWLING - pretty print
-            let result = {
-                "allTokenHolders": Object.keys(self.accounts).length,
-                "totalDepth": this.current,
-            };
+            let unfilteredTokenHoldersCount = Object.keys(this.storage.accounts).length;
 
-            let beautified = JSONBeautifier.render(result, {
-                keysColor: 'green',
-                dashColor: 'green',
-                stringColor: 'yellow'
+            // FILTER all holders (token holders must have more than 50 dim:token)
+            this.filterByTokenHolderElligibility()
+                .then((elligibleTokenHolderCount) => {
+                // DONE CRAWLING blockchain transactions
+
+                // format output as rows
+                let output = [];
+                for (let i = 0, k = Object.keys(this.storage.tokenHolders); i < k.length; i++)
+                    output.push({"address": k[i], "balance": this.storage.tokenHolders[k[i]]});
+
+                let result = {
+                    "allTokenHolders": unfilteredTokenHoldersCount,
+                    "payoutTokenHolders": Object.keys(this.storage.tokenHolders).length,
+                    "totalDepth": this.current,
+                };
+
+                let beautified = JSONBeautifier.render(result, {
+                    keysColor: 'green',
+                    dashColor: 'green',
+                    stringColor: 'yellow'
+                });
+
+                let formmater = null;
+                switch(format) {
+                    default:
+                    case 'xslx': formatter = new FormatterXLSX(); break;
+                    case 'json': formatter = new formatterJson(); break;
+                    case 'csv':  formatter = new formatterCSV(); break;
+                }
+
+                // EXPORT to file
+                formatter.init(filePath)
+                         .write(output)
+                         .save();
+
+                return this.end();
+            })
+            .catch((err) => {
+                console.error(err);
+                return this.end();
             });
-
-            let output = [];
-            for (let i = 0, k = Object.keys(self.accounts); i < k.length; i++)
-                output.push(self.accounts[k[i]]);
-
-            // EXPORT to file
-            let formatter = new FormatterXLSX();
-            formatter.init(filePath)
-                     .write(output)
-                     .save();
-
-            let f2 = new FormatterJSON();
-            f2.init(filePath + ".json").write(output).save();
-
-            return this.end();
         })
         .catch((err) => {
             console.error(err);
@@ -223,8 +235,8 @@ class Command extends BaseCommand {
         let nextLevel = parseInt(level) + 1;
         let currLvlKey = "level-" + parseInt(level);
         let nextLvlKey = "level-" + (nextLevel);
-        if (! self.levels.hasOwnProperty(nextLvlKey)) {
-            self.levels[nextLvlKey] = [];
+        if (! self.storage.levels.hasOwnProperty(nextLvlKey)) {
+            self.storage.levels[nextLvlKey] = [];
         }
 
         return new Promise(function(resolve, reject) {
@@ -236,28 +248,23 @@ class Command extends BaseCommand {
 
                 // update storage
                 totalTokenHolders += levelHolders.length;
-                self.levels[nextLvlKey] = self.levels[nextLvlKey].concat(levelHolders);
-
-                if (levelHolders.length) {
-                    // found *potential* holders in next level.
-                    self.log("Found " + levelHolders.length + " dim:token Holders (Level " + nextLevel + ")");
-                }
+                self.storage.levels[nextLvlKey] = self.storage.levels[nextLvlKey].concat(levelHolders);
 
                 // check whether there is more token holder on the current level.
                 let nextLvl = parseInt(self.current);
-                if (! self.levels[currLvlKey].length) {
+                if (! self.storage.levels[currLvlKey].length) {
                     // done with level, move to next.
                     nextLvl = ++self.current;
                 }
 
                 // move to next level if available
                 currLvlKey = "level-" + parseInt(nextLvl);
-                if (!self.levels.hasOwnProperty(currLvlKey)) {
+                if (!self.storage.levels.hasOwnProperty(currLvlKey)) {
                     // no more levels - DONE (BREAK RECURSION).
                     return resolve(levelHolders.length);
                 }
 
-                let next = self.levels[currLvlKey].shift();
+                let next = self.storage.levels[currLvlKey].shift();
                 if (!next || !next.length) {
                     // no more entries - DONE (BREAK RECURSION).
                     return resolve(levelHolders.length);
@@ -289,13 +296,13 @@ class Command extends BaseCommand {
             self.readTransactions(cAddress, beforeTrxId)
                 .then((response) => {
 
-                // save the read transactions to avoid re-processing
                 let transactions = response.data;
                 if (!transactions || !transactions.length) {
                     // account empty
                     return resolve(self.storage.accounts);
                 }
 
+                // save the read transactions to avoid re-processing
                 let res = self.processTransactions(transactions, pageSize);
 
                 if (false === res.status) {
@@ -407,6 +414,54 @@ class Command extends BaseCommand {
         }
 
         return result;
+    }
+
+    /**
+     * This method processes all *retrieved* `accounts` and checks
+     * their *current mosaic balance for dim:token*.
+     * 
+     * This step is important to ensure 
+     *
+     * @param {Array} transactions 
+     * @return {Object}
+     */
+    filterByTokenHolderElligibility() {
+        let self = this;
+        let all  = Object.keys(self.storage.accounts);
+
+        // promise request result
+        return new Promise(function(resolve, reject) 
+        {
+            let address = all.shift();
+            self.api.SDK.com.requests
+                .account.mosaics.owned(self.api.node, address)
+                .then((response) => {
+
+                // update store amount for token holder OR remove
+                let mosaics = response.data;
+                let balances = !mosaics || !mosaics.length ? mosaics : [];
+
+                for (let b = 0; b < balances.length; b++) {
+                    let s = NEM.utils.format.mosaicIdToName(balances[b]);
+                    if (s !== "dim:token") continue;
+
+                    // accounts storage is used to iterate recursively.
+                    delete self.storage.accounts[address];
+                    if (balances[b].quantity < self.parameters.minTokenHolderShare) {
+                        // token holder DOES NOT meet requirement.
+                        continue;
+                    }
+
+                    // token holder MEETS requirements
+                    self.storage.tokenHolders[address] = balances[b].quantity;
+                }
+
+                return resolve(self.storage.tokenHolders.length);
+            })
+            .catch((err) => {
+                return reject(err);
+            });
+        });
     }
 
 }

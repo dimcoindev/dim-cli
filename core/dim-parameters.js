@@ -76,6 +76,12 @@ class DIMParameters {
         this.dimNetworkId = 104; // NEM Mainnet
 
         /**
+         * Minimum MICRO TOKEN value to own in order to be accepted
+         * in the 30 % Fee Payout.
+         */
+        this.minTokenHolderShare = 50 * Math.pow(10, 6);
+
+        /**
          * This constitutes the base parameters of the said
          * mosaics of the DIM Ecosystem.
          */

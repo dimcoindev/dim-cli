@@ -77,6 +77,7 @@ class Formatter {
      * @return {Formatter}
      */
     write(data) {
+        let keys = Object.keys(data);
         this.rows.push(data);
         return this;
     }
