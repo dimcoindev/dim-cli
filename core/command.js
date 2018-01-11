@@ -120,7 +120,7 @@ class BaseCommand {
         const log = console.log;
 
         log("")
-        log("  " + label("Usage: ") + keyword("nem-cli " + this.signature + " [options]"));
+        log("  " + label("Usage: ") + keyword("dim-cli " + this.signature + " [options]"));
         log("");
         log("  " + label("Description:"));
         log("");
@@ -194,7 +194,7 @@ class BaseCommand {
      */
     init(options) {
         this.argv = options;
-        
+
         // prepare connection to NEM network
         let defaultNodes = {
             "mainnet": "hugealice.nem.ninja",
@@ -334,7 +334,7 @@ class BaseCommand {
             x: 3,
             y: 2
         });
-        menu.writeTitle("NEM CLI v" + this.npmPackage.version);
+        menu.writeTitle("DIM CLI v" + this.npmPackage.version);
         menu.writeSubtitle(menuTitle);
         menu.writeSeparator();
 

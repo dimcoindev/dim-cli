@@ -34,7 +34,7 @@ class ConsoleInput {
                 callback(data);
             }
             else if (format) {
-                stdout.write("It should match: " + format + "\n");
+                stdout.write("Input should match: " + format + "\n");
                 self.ask(question, format, callback);
             }
         });

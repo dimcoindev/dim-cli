@@ -76,6 +76,7 @@ $ dim-cli api --url /chain/height --node alice6.nem.ninja
 $ dim-cli api --url /chain/height --node b1.nem.foundation --port 7895
 
 # Use the headless wallet features
+$ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --balances --raw
 $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --overview
 $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --watch
 

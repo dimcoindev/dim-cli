@@ -126,8 +126,8 @@ class Command extends BaseCommand {
         let isVerbose = env.verbose === true;
 
         if (!apiUrl) {
-            self.help();
-            return self.end();
+            this.help();
+            return this.end();
         }
 
         if (hasQuery) {

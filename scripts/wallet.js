@@ -41,10 +41,10 @@ class Command extends BaseCommand {
         this.description = ("    " + "This tool lets you read data of DIM wallets.\n"
                     + "    " + "Specify the address of the wallet with --address to get started.\n\n"
                     + "    " + "Examples:\n\n"
-                    + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ\n\n"
-                    + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --balances\n\n"
-                    + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --balances --raw\n\n"
-                    + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --overview\n\n");
+                    + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ\n"
+                    + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --balances\n"
+                    + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --balances --raw\n"
+                    + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --overview");
 
         this.options = [{
             "signature": "-h, --help",
@@ -108,8 +108,8 @@ class Command extends BaseCommand {
         this.wallet = this.loadWallet(env);
 
         if (!this.wallet) {
-            self.help();
-            return self.end();
+            this.help();
+            return this.end();
         }
 
         // Wallet now loaded, should provide with a Menu or Table content
