@@ -13,7 +13,7 @@ Feel free to contribute wherever you think you can help! DIMlovers much apprecia
 Run the following from the terminal:
 
 ```bash
-$ git clone https://bitbucket.org/gregevs/dim-cli.git dim-cli/
+$ git clone https://github.com/dimcoin/dim-cli.git dim-cli/
 $ cd dim-cli
 $ npm install
 
@@ -32,8 +32,10 @@ Here is a write-up of some examples for running the `dim-cli` command line tools
 
 ```bash
 $ dim-cli list
-$ dim-cli api [arguments]
-$ dim-cli wallet [arguments]
+$ dim-cli api help
+$ dim-cli wallet help
+$ dim-cli explorer help
+$ dim-cli finder help
 $ dim-cli --help
 ```
 
@@ -43,15 +45,6 @@ or
 $ npm start list
 $ npm start api  [arguments]
 $ npm start wallet  [arguments]
-```
-
-.. or
-
-```bash
-$ ./babel-node dim-cli list
-$ ./babel-node dim-cli api [arguments]
-$ ./babel-node dim-cli wallet [arguments]
-$ ./babel-node dim-cli --help
 ```
 
 ## Examples
@@ -83,6 +76,15 @@ $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --watch
 # Use a simple terminal menu to interact with wallet
 $ dim-cli wallet --file /home/you/Downloads/your.wlt
 $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ
+
+# Get dim:coin Network Levy informations
+$ dim-cli explorer --networkFee
+$ dim-cli explorer --payoutFee --raw
+
+# Export token holders addresses and balances.
+$ dim-cli finder
+$ dim-cli finder --format csv
+$ dim-cli finder --format xlsx
 ```
 
 in the love of DIM <3

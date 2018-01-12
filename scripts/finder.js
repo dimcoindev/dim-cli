@@ -12,7 +12,7 @@
  * @author     DIMCoin Developers
  * @license    MIT License
  * @copyright  (c) 2018, DIMCoin Developers
- * @link       https://bitbucket.org/dimcoin/dim-cli
+ * @link       https://github.com/dimcoin/dim-cli
  */
 "use strict";
 
@@ -148,18 +148,20 @@ class Command extends BaseCommand {
         let tokenCreator = this.parameters.getToken().creator;
         let startAddress = this.api.SDK.model.address.toAddress(tokenCreator, this.parameters.dimNetworkId);
 
-        this.log("Now starting dim:token crawler with address: " + startAddress, "label", true);
+        this.log("Now starting dim:token crawler with address: " + startAddress);
 
         // fetch first batch of token holders (starting from mosaic creator)
         this.startCrawler(startAddress)
             .then((totalTokenHolders) => {
+            // DONE CRAWLING blockchain transactions
 
+            // this is the total number of people *who once 
+            // had dim:tokens* but maybe don't have them anymore.
             let unfilteredTokenHoldersCount = Object.keys(this.storage.accounts).length;
 
             // FILTER all holders (token holders must have more than 50 dim:token)
             this.filterByTokenHolderElligibility()
                 .then((elligibleTokenHolderCount) => {
-                // DONE CRAWLING blockchain transactions
 
                 // format output as rows
                 let output = [];
@@ -182,8 +184,8 @@ class Command extends BaseCommand {
                 switch(format) {
                     default:
                     case 'xslx': formatter = new FormatterXLSX(); break;
-                    case 'json': formatter = new formatterJson(); break;
-                    case 'csv':  formatter = new formatterCSV(); break;
+                    case 'json': formatter = new FormatterJSON(); break;
+                    case 'csv':  formatter = new FormatterCSV(); break;
                 }
 
                 // EXPORT to file

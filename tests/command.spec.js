@@ -12,7 +12,7 @@
  * @author     DIMCoin Developers
  * @license    MIT License
  * @copyright  (c) 2018, DIMCoin Developers
- * @link       https://bitbucket.org/dimcoin/dim-cli
+ * @link       https://github.com/dimcoin/dim-cli
  */
 import BaseCommand from "../core/command";
 var fs = require("fs"),
