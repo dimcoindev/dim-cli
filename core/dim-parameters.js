@@ -24,6 +24,8 @@
  * - dimNEMDate:  The NEM timestamp of the DIM ecosystem genesis.
  * - dimGenesisHeight: The NEM block height of the dim:coin mosaic creation transaction.
  * - dimGenesisTransactionId: The NEM transaction id of the dim:coin mosaic creation transaction.
+ * - dimNetworkId: The NEM network id for the DIM Ecosystem.
+ * - minTokenHolderShare: The minimum dim:token balance for the 30% levy token holder payouts.
  * - mosaicParameters["dim:coin"]: The dim:coin mosaic parameters (divisibility, supply, levy).
  * - mosaicParameters["dim:token"]: The dim:token mosaic parameters (divisibility, supply).
  * - mosaicParameters["dim:eur"]: The dim:eur mosaic parameters (divisibility, supply).

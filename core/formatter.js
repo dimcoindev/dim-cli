@@ -17,6 +17,7 @@
 "use strict";
 
 import * as Excel from "xlsx";
+import * as fs from "fs";
 
 /**
  * The Formatter class will provide with different data

@@ -178,7 +178,7 @@ class Command extends BaseCommand {
                     stringColor: 'yellow'
                 });
 
-                let formmater = null;
+                let formatter = null;
                 switch(format) {
                     default:
                     case 'xslx': formatter = new FormatterXLSX(); break;
@@ -255,6 +255,14 @@ class Command extends BaseCommand {
                 if (! self.storage.levels[currLvlKey].length) {
                     // done with level, move to next.
                     nextLvl = ++self.current;
+
+                    let cntNextLvl = self.storage.levels["level-" + nextLvl] ? self.storage.levels["level-" + nextLvl].length : 0;
+                    if (0 === cntNextLvl) {
+                        // no entries in next level - DONE (BREAK RECURSION)
+                        return resolve(levelHolders.length);
+                    }
+
+                    self.log("Now handling Level " + self.current + " with " + cntNextLvl + " potential token holders.");
                 }
 
                 // move to next level if available
