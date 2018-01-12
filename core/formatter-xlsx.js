@@ -93,8 +93,9 @@ class FormatterXLSX extends Formatter {
     __toFile(filePath) {
         var sheet = Excel.utils.json_to_sheet(this.rows);
 
+        this.workbook = {Sheets: {}, SheetNames: []};
         this.workbook.SheetNames.push(this.sheetName);
-        this.workbook.Sheets[wsName[sheetVar]] = sheet;
+        this.workbook.Sheets[this.sheetName] = sheet;
 
         Excel.writeFile(this.workbook, filePath);
         return this;

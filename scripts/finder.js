@@ -92,6 +92,20 @@ class Command extends BaseCommand {
          * @var {Integer}
          */
         this.current = 1;
+
+        /**
+         * The index of the current processed token holder.
+         *
+         * @var {Integer}
+         */
+        this.index = 0;
+
+        /**
+         * The timeout instance.
+         *
+         * @var {Integer}
+         */
+        this.timeout = undefined;
     }
 
     /**
@@ -256,6 +270,7 @@ class Command extends BaseCommand {
                 let nextLvl = parseInt(self.current);
                 if (! self.storage.levels[currLvlKey].length) {
                     // done with level, move to next.
+                    self.clearTimeout();
                     nextLvl = ++self.current;
 
                     let cntNextLvl = self.storage.levels["level-" + nextLvl] ? self.storage.levels["level-" + nextLvl].length : 0;
@@ -265,6 +280,9 @@ class Command extends BaseCommand {
                     }
 
                     self.log("Now handling Level " + self.current + " with " + cntNextLvl + " potential token holders.");
+
+                    // starting new level, may take some time.
+                    self.addTimeout();
                 }
 
                 // move to next level if available
@@ -275,6 +293,7 @@ class Command extends BaseCommand {
                 }
 
                 let next = self.storage.levels[currLvlKey].shift();
+                self.index++;
                 if (!next || !next.length) {
                     // no more entries - DONE (BREAK RECURSION).
                     return resolve(levelHolders.length);
@@ -289,6 +308,31 @@ class Command extends BaseCommand {
                 reject(err);
             });
         });
+    }
+
+    /**
+     * Clear the process timeout.
+     *
+     * @return {Object}
+     */
+    clearTimeout() {
+        if (this.timeout)
+            clearInterval(this.timeout);
+
+        return this;
+    }
+
+    /**
+     * Add a console message whenever a process is longer than 3 minutes.
+     */
+    addTimeout() {
+        let self = this;
+
+        self.timeout = setInterval(() => {
+            console.log("Still processing (Level " + self.current + ", Holder #" + self.index + ") ..");
+        }, 3 * 60 * 1000);
+
+        return self;
     }
 
     /**
