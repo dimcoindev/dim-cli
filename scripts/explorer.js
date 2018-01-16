@@ -40,8 +40,9 @@ class Command extends BaseCommand {
         this.signature = "explorer";
         this.description = ("    " + "This tool lets you explore DIM ecosystem informations.\n"
                     + "    " + "Examples:\n\n"
-                    + "    " + "  $ dim-cli explorer --total-network-fee"
-                    + "    " + "  $ dim-cli explorer --total-holder-fee-share");
+                    + "    " + "  $ dim-cli explorer --networkFee"
+                    + "    " + "  $ dim-cli explorer --payoutFee"
+                    + "    " + "  $ dim-cli explorer --totalSupply dim:coin");
 
         this.options = [{
             "signature": "-h, --help",
@@ -55,11 +56,15 @@ class Command extends BaseCommand {
         }, {
             "signature": "--payoutFee",
             "description": "Get the total token holder share amount (30 % of network fee)."
+        }, {
+            "signature": "--totalSupply <currency>",
+            "description": "Get the total circulating supply of a said currency ('dim:coin', 'dim:token', etc.)."
         }];
 
         this.examples = [
             "dim-cli explorer --networkFee",
             "dim-cli explorer --payoutFee",
+            "dim-cli explorer --totalSupply --raw",
         ];
 
         /**
@@ -128,7 +133,8 @@ class Command extends BaseCommand {
 
                 return this.outputResponse("Total Network Fee ", totalLevy, "dim:coin")
                            .end();
-            });
+            })
+            .catch((err) => console.error(err));
         }
         else if (env.payoutFee) {
             // Print the TOTAL TOKEN HOLDER FEE SHARE
@@ -141,7 +147,30 @@ class Command extends BaseCommand {
 
                 return this.outputResponse("Token Holder Fee Share: ", holdersShareLevy, "dim:coin")
                            .end();
-            });
+            })
+            .catch((err) => console.error(err));
+        }
+        else if (env.totalSupply) {
+            // Print the TOTAL CIRCULATING SUPPLY OF CURRENCY
+            // ----------------------------------------------
+            // The returned amount represents the TOTAL available supply
+            // of a said currency. This is the total of coins that have
+            // been created by the mosaic creator.
+
+            let currency = env.totalSupply;
+            if (! currency.match(/(.*):(.*)/)) {
+                // currency format error
+                this.help();
+                return this.end();
+            }
+
+            this.explorer.getTotalCirculatingSupply(currency)
+                .then((totalSupply) => { 
+
+                return this.outputResponse("Total supply of '" + currency + "' is ", totalSupply, "dim:coin")
+                           .end();
+            })
+            .catch((err) => console.error(err));
         }
         else {
             this.help();

@@ -53,6 +53,9 @@ class Command extends BaseCommand {
         }, {
             "signature": "-f, --file <filename>",
             "description": "Set the file name to export to (must also contain the extension). Will be saved to the resources/ folder."
+        }, {
+            "signature": "-t, --trxlog <filename>",
+            "description": "Set the file name to export *the transaction log* to (must also contain the extension). Will be saved to the resources/ folder."
         }];
 
         this.examples = [
@@ -106,6 +109,20 @@ class Command extends BaseCommand {
          * @var {Integer}
          */
         this.timeout = undefined;
+
+        /**
+         * The Accounts formatter instance.
+         *
+         * @var {Formatter}
+         */
+        this.formatterAccts = undefined;
+
+        /**
+         * The Transactions formatter instance.
+         *
+         * @var {Formatter}
+         */
+        this.formatterTrxes = undefined;
     }
 
     /**
@@ -126,9 +143,11 @@ class Command extends BaseCommand {
         let app_path = process.cwd();
         let path = require("path").basename(__dirname + "/../resources");
         let name = env.file || "dim-token-holders-" + utc;
+        let trx_name = env.trxlog || "dim-token-transactions-" + utc;
 
         // build absolute export file path (fully qualified file path)
         let filePath = app_path + "/" + path + "/" + name;
+        let filePathTrx = app_path + "/" + path + "/" + trx_name;
 
         // now check format to export
         let format  = env.format;
@@ -143,10 +162,13 @@ class Command extends BaseCommand {
             return this.end();
         }
 
-        // add correct extension for export
+        // add correct extension for export files
         let ext = new RegExp("\\." + format.toLowerCase() + "$");
         if (! ext.test(filePath))
             filePath = filePath + "." + format;
+
+        if (! /\.json$/.test(filePathTrx))
+            filePathTrx = filePathTrx + ".json";
 
         // `filePath` is now a fully qualified export file name (self-contained path)
         // Crawler command will now start processing.
@@ -162,62 +184,69 @@ class Command extends BaseCommand {
         let tokenCreator = this.parameters.getToken().creator;
         let startAddress = this.api.SDK.model.address.toAddress(tokenCreator, this.parameters.dimNetworkId);
 
+        // --format interpretation
+        switch(format) {
+            default:
+            case 'xslx': this.formatterAccts = new FormatterXLSX(); break;
+            case 'json': this.formatterAccts = new FormatterJSON(); break;
+            case 'csv':  this.formatterAccts = new FormatterCSV(); break;
+        }
+        
+        // open logging resources
+        this.formatterAccts.init(filePath);
+
+        this.formatterTrxes = new FormatterJSON();
+        this.formatterTrxes.init(filePathTrx);
+
         this.log("Now starting dim:token crawler with address: " + startAddress);
 
         // fetch first batch of token holders (starting from mosaic creator)
         this.startCrawler(startAddress)
             .then((totalTokenHolders) => {
             // DONE CRAWLING blockchain transactions
+            this.formatterTrxes.save();
 
             // this is the total number of people *who once 
             // had dim:tokens* but maybe don't have them anymore.
             let unfilteredTokenHoldersCount = Object.keys(this.storage.accounts).length;
 
             // FILTER all holders (token holders must have more than 50 dim:token)
-            this.filterByTokenHolderElligibility()
-                .then((elligibleTokenHolderCount) => {
+            this.filterByTokenHolderElligibility(Object.keys(this.storage.accounts), this.storage.tokenHolders)
+                .then((elligibleTokenHoldersCount, dimTokenHolders) => {
 
-                // format output as rows
-                let output = [];
-                for (let i = 0, k = Object.keys(this.storage.tokenHolders); i < k.length; i++)
-                    output.push({"address": k[i], "balance": this.storage.tokenHolders[k[i]]});
+                // DONE FILTERING HOLDERS
+                this.formatterAccts.save();
 
-                let result = {
-                    "allTokenHolders": unfilteredTokenHoldersCount,
-                    "payoutTokenHolders": Object.keys(this.storage.tokenHolders).length,
-                    "totalDepth": this.current,
-                };
+                console.log("");
+                console.log("Total DIM Network Depth: " + this.current);
+                console.log("All Token Holders: " + unfilteredTokenHoldersCount + " accounts");
+                console.log("Payout Elligible Token Holders: " + elligibleTokenHoldersCount + " token holders");
+                console.log("");
 
-                let beautified = JSONBeautifier.render(result, {
-                    keysColor: 'green',
-                    dashColor: 'green',
-                    stringColor: 'yellow'
-                });
-
-                let formatter = null;
-                switch(format) {
-                    default:
-                    case 'xslx': formatter = new FormatterXLSX(); break;
-                    case 'json': formatter = new FormatterJSON(); break;
-                    case 'csv':  formatter = new FormatterCSV(); break;
-                }
-
-                // EXPORT to file
-                formatter.init(filePath)
-                         .write(output)
-                         .save();
+                console.log("Now exporting to: " + filePath);
 
                 return this.end();
-            })
+            }, this)
             .catch((err) => {
+                // errors should not abort logs
+
+                if (this.formatterTrxes.getRows().length)
+                    this.formatterTrxes.save();
+
                 console.error(err);
                 return this.end();
-            });
+            }, this);
         })
         .catch((err) => {
+            console.error("CRAWLER ABORTED: ", err);
+
+            // errors should not abort logs
+            if (this.formatterTrxes.getRows().length)
+                this.formatterTrxes.save();
+
             console.error(err);
             return this.end();
-        });
+        }, this);
     }
 
     /**
@@ -240,74 +269,73 @@ class Command extends BaseCommand {
      * @return {Object}
      */
     startCrawler(forAddress, lvl) {
-        let self = this;
-
         let level = lvl || 1;
         let totalTokenHolders = 0;
-        let beforeThisLevel = Object.keys(self.storage.accounts).length;
+        let beforeThisLevel = Object.keys(this.storage.accounts).length;
         //console.log("[READ " + (parseInt(level)) + "] (" + forAddress + ")");
 
         // prepare storage
         let nextLevel = parseInt(level) + 1;
         let currLvlKey = "level-" + parseInt(level);
         let nextLvlKey = "level-" + (nextLevel);
-        if (! self.storage.levels.hasOwnProperty(nextLvlKey)) {
-            self.storage.levels[nextLvlKey] = [];
+        if (! this.storage.levels.hasOwnProperty(nextLvlKey)) {
+            this.storage.levels[nextLvlKey] = [];
         }
 
         return new Promise(function(resolve, reject) {
             // crawl the first address, then crawl all found holders.
-            self.crawlAddress(forAddress, null)
+            this.crawlAddress(forAddress, null)
                 .then((tokenHolders) => {
 
                 let levelHolders = Object.keys(tokenHolders).slice(beforeThisLevel);
 
                 // update storage
                 totalTokenHolders += levelHolders.length;
-                self.storage.levels[nextLvlKey] = self.storage.levels[nextLvlKey].concat(levelHolders);
+                this.storage.levels[nextLvlKey] = this.storage.levels[nextLvlKey].concat(levelHolders);
 
                 // check whether there is more token holder on the current level.
-                let nextLvl = parseInt(self.current);
-                if (! self.storage.levels[currLvlKey].length) {
+                let nextLvl = parseInt(this.current);
+                if (! this.storage.levels[currLvlKey].length) {
                     // done with level, move to next.
-                    self.clearTimeout();
-                    nextLvl = ++self.current;
+                    this.clearTimeout();
+                    nextLvl = ++this.current;
 
-                    let cntNextLvl = self.storage.levels["level-" + nextLvl] ? self.storage.levels["level-" + nextLvl].length : 0;
+                    let cntNextLvl = this.storage.levels["level-" + nextLvl] ? this.storage.levels["level-" + nextLvl].length : 0;
                     if (0 === cntNextLvl) {
                         // no entries in next level - DONE (BREAK RECURSION)
                         return resolve(levelHolders.length);
                     }
 
-                    self.log("Now handling Level " + self.current + " with " + cntNextLvl + " potential token holders.");
+                    this.log("Now handling Level " + this.current + " with " + cntNextLvl + " potential token holders.");
 
                     // starting new level, may take some time.
-                    self.addTimeout();
+                    this.addTimeout();
                 }
 
                 // move to next level if available
                 currLvlKey = "level-" + parseInt(nextLvl);
-                if (!self.storage.levels.hasOwnProperty(currLvlKey)) {
+                if (!this.storage.levels.hasOwnProperty(currLvlKey)) {
                     // no more levels - DONE (BREAK RECURSION).
                     return resolve(levelHolders.length);
                 }
 
-                let next = self.storage.levels[currLvlKey].shift();
-                self.index++;
+                let next = this.storage.levels[currLvlKey].shift();
+                this.index++;
                 if (!next || !next.length) {
                     // no more entries - DONE (BREAK RECURSION).
                     return resolve(levelHolders.length);
                 }
 
                 // RECURSION: crawl next token holder
-                return self.startCrawler(next, nextLvl)
+                return this.startCrawler(next, nextLvl)
                            .then((holdersByLevel) => resolve(holdersByLevel))
                            .catch((err) => reject(err));
-            })
+            }, this)
             .catch((err) => {
-                reject(err);
-            });
-        });
+                console.error("crawlAddress Failed: ", err);
+                return reject(err);
+            }, this);
+        }.bind(this));
     }
 
     /**
@@ -326,9 +354,9 @@ class Command extends BaseCommand {
      * Add a console message whenever a process is longer than 3 minutes.
      */
     addTimeout() {
-        let self = this;
+        var self = this;
 
-        self.timeout = setInterval(() => {
+        this.timeout = setInterval(() => {
             console.log("Still processing (Level " + self.current + ", Holder #" + self.index + ") ..");
         }, 3 * 60 * 1000);
 
@@ -343,36 +371,35 @@ class Command extends BaseCommand {
      */
     crawlAddress(cAddress, beforeTrxId) {
         let pageSize = 25;
-        let self = this;
 
         return new Promise(function(resolve, reject) 
         {
-            self.readTransactions(cAddress, beforeTrxId)
+            this.readTransactions(cAddress, beforeTrxId)
                 .then((response) => {
 
                 let transactions = response.data;
                 if (!transactions || !transactions.length) {
                     // account empty
-                    return resolve(self.storage.accounts);
+                    return resolve(this.storage.accounts);
                 }
 
                 // save the read transactions to avoid re-processing
-                let res = self.processTransactions(transactions, pageSize);
+                let res = this.processTransactions(transactions, pageSize);
 
                 if (false === res.status) {
                     // done reading transactions
-                    return resolve(self.storage.accounts);
+                    return resolve(this.storage.accounts);
                 }
 
-                // continue crawling current address.
-                return self.crawlAddress(cAddress, res.lastId)
-                           .then((acct) => { resolve(acct); })
-                           .catch((err) => { reject(err); });
-            })
+                // continue crawling current address (there is more transactions).
+                return this.crawlAddress(cAddress, res.lastId)
+                           .then((acct) => { return resolve(acct); })
+                           .catch((err) => { return reject(err); });
+            }, this)
             .catch((err) => {
-                reject(err);
-            });
-        });
+                return reject(err);
+            }, this);
+        }.bind(this));
     }
 
     /**
@@ -384,20 +411,19 @@ class Command extends BaseCommand {
      * @return {Promise}
      */
     readTransactions(address, beforeTrxId) {
-        let self = this;
-
         // promise request result
         return new Promise(function(resolve, reject) 
         {
-            self.api.SDK.com.requests
-                .account.transactions.outgoing(self.api.node, address, null, beforeTrxId)
+            this.api.SDK.com.requests
+                .account.transactions.outgoing(this.api.node, address, null, beforeTrxId)
                 .then((transactions) => {
                 return resolve(transactions);
-            })
+            }, this)
             .catch((err) => {
+                console.error("/account/transfers/outgoing Failed: ", err);
                 return reject(err);
-            });
-        });
+            }, this);
+        }.bind(this));
     }
 
     /**
@@ -444,27 +470,35 @@ class Command extends BaseCommand {
             }
 
             let recipient = realData.recipient;
+            let sender    = this.api.SDK.model.address.toAddress(realData.signer, this.api.networkId);
 
             // find dim:token in mosaics array.
             for (let j = 0, n = realData.mosaics.length; j < n; j++) {
                 let s = NEM.utils.format.mosaicIdToName(realData.mosaics[j].mosaicId);
-                if ("dim:token" == s) {
-                    if (! this.storage.accounts.hasOwnProperty(recipient))
-                        this.storage.accounts[recipient] = realData.mosaics[j].quantity;
-                    else
-                        this.storage.accounts[recipient] += realData.mosaics[j].quantity;
+                if ("dim:token" != s) continue;
 
-                    // found dim:token OUTPUT: store holder for further crawling.
-                    result['holders'].push(recipient);
-                    break;
-                }
+                // found dim:token OUTPUT: store holder for further crawling.
+                if (! this.storage.accounts.hasOwnProperty(recipient))
+                    this.storage.accounts[recipient] = {"sender": null, "quantity": 0};
+
+                // transaction log may contain more than one entry GOING TO `recipient`.
+                this.storage.accounts[recipient]['sender'] = sender;
+                this.storage.accounts[recipient]['quantity'] += parseInt(realData.mosaics[j].quantity);
+
+                // transaction log will print each of those entries (not-aggregated)
+                this.formatterTrxes.write({
+                    "quantity": parseInt(realData.mosaics[j].quantity),
+                    "holder": recipient,
+                    "sender": sender
+                });
+                result['holders'].push(recipient);
+                break;
             }
         }
 
         if (total % pageSize !== 0) {
             // did not return max number of entries, means no more entries available.
             result['status'] = false; // done
-            return result;
         }
 
         return result;
@@ -474,48 +508,67 @@ class Command extends BaseCommand {
      * This method processes all *retrieved* `accounts` and checks
      * their *current mosaic balance for dim:token*.
      * 
-     * This step is important to ensure 
+     * This step is important to ensure token holders *still own* more
+     * than 50 tokens when the payout data is exported.
      *
      * @param {Array} transactions 
      * @return {Object}
      */
-    filterByTokenHolderElligibility() {
-        let self = this;
-        let all  = Object.keys(self.storage.accounts);
+    filterByTokenHolderElligibility(addresses, holders) {
+        let remaining = addresses || [];
+        let dimTokenHolders = holders;
+
+        //console.log("Filtering holders out of " + remaining.length + " accounts.");
 
         // promise request result
         return new Promise(function(resolve, reject) 
         {
-            let address = all.shift();
-            self.api.SDK.com.requests
-                .account.mosaics.owned(self.api.node, address)
+            let address = remaining.shift();
+            this.api.SDK.com.requests
+                .account.mosaics.owned(this.api.node, address)
                 .then((response) => {
+
+                console.log("Response for mosaics.owned: " + JSON.stringify(response));
 
                 // update store amount for token holder OR remove
                 let mosaics = response.data;
                 let balances = !mosaics || !mosaics.length ? mosaics : [];
 
                 for (let b = 0; b < balances.length; b++) {
-                    let s = NEM.utils.format.mosaicIdToName(balances[b]);
+                    let s = NEM.utils.format.mosaicIdToName(balances[b].mosaicId);
                     if (s !== "dim:token") continue;
 
-                    // accounts storage is used to iterate recursively.
-                    delete self.storage.accounts[address];
-                    if (balances[b].quantity < self.parameters.minTokenHolderShare) {
+                    console.log("Found tokens for " + address + ": " + balances[b].quantity + " dim:coin");
+
+                    if (balances[b].quantity < this.parameters.minTokenHolderShare) {
                         // token holder DOES NOT meet requirement.
                         continue;
                     }
 
                     // token holder MEETS requirements
-                    self.storage.tokenHolders[address] = balances[b].quantity;
+                    dimTokenHolders[address] = balances[b].quantity;
+
+                    this.formatterAccts.writeRows([{
+                        "holderAddress": address,
+                        "stakeQuantity": balances[b].quantity
+                    }]);
                 }
 
-                return resolve(self.storage.tokenHolders.length);
-            })
+                // In case we still have accounts to iterate over, RECURSION.
+                if (remaining.length) {
+                    return this.filterByTokenHolderElligibility(remaining, dimTokenHolders)
+                               .then((deepHoldersCnt, deepHolders) => { return resolve(deepHoldersCnt, deepHolders); })
+                               .catch((err) => reject(err));
+                }
+
+                // RECURSION DONE
+                return resolve(Object.keys(dimTokenHolders).length, dimTokenHolders);
+            }, this)
             .catch((err) => {
+                console.error("/account/mosaic/owned Failed: ", err);
                 return reject(err);
-            });
-        });
+            }, this);
+        }.bind(this));
     }
 
 }

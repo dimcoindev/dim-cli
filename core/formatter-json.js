@@ -56,10 +56,13 @@ class FormatterJSON extends Formatter {
      * @return {Formatter}
      */
     __fromFile(filePath) {
-        let content = fs.readFileSync(filePath);
-        this.rows  = JSON.parse(content);
+        let content = fs.readFileSync(filePath, "utf8");
 
-        return this;
+        try {
+            this.rows  = JSON.parse(content);
+        } catch (e) {}
+
+        return this.rows || [];
     }
 
     /**

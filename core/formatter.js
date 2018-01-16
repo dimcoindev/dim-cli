@@ -52,7 +52,7 @@ class Formatter {
          *
          * @var {Array}
          */
-        this.rows = [];
+        this.rows = new Array();
     }
 
     /**
@@ -78,9 +78,29 @@ class Formatter {
      * @return {Formatter}
      */
     write(data) {
-        let keys = Object.keys(data);
         this.rows.push(data);
         return this;
+    }
+
+    /**
+     * This method lets you add a collection of rows to the formatter
+     * stream.
+     *
+     * @param {Object} data     Row to be added.
+     * @return {Formatter}
+     */
+    writeRows(data) {
+        this.rows = this.rows.concat(data);
+        return this;
+    }
+
+    /**
+     * Getter for the `rows` property.
+     * 
+     * @return {Array}
+     */
+    getRows() {
+        return this.rows || [];
     }
 
     /**
@@ -89,7 +109,7 @@ class Formatter {
      * @return {Formatter}
      */
     save() {
-        return this.__toFile();
+        return this.__toFile(this.filepath);
     }
 
     /**

@@ -25,6 +25,27 @@ import NEM from "nem-sdk";
  * 
  * The explorer can be used to retrieve important information when working
  * with DIM.
+ * 
+ * All methods in the DIMExplorer return Promises. This means that you will
+ * use then-chains rather than callbacks when working with the Explorer class.
+ * 
+ * @example Instantiate the DIMExplorer class
+ * 
+ * ```javascript
+ *     import NIS from "./scripts/api"; 
+ *     let api = new NIS();
+ *     api.init({network: "mainnet"});
+ * 
+ *     let explorer = new DIMExplorer(api);
+ * 
+ *     // Now use the explorer..
+ *     this.getCurrency("dim:coin").then((parameters) => { console.log(parameters); });
+ * 
+ *     // OR..
+ *     this.getTotalHoldersShareLevyAmount()
+ *         .then((amount) => { console.log(amount); })
+ *         .catch((err) => console.error(err));
+ * ```
  *
  */
 class DIMExplorer {
@@ -46,6 +67,43 @@ class DIMExplorer {
          * @var {Object}
          */
         this.api = NIS;
+    }
+
+    /**
+     * This helper method retrieves dim currencies data on the NEM
+     * blockchain network.
+     *
+     * @param {String} currency     Fully qualified mosaic name (dim:coin, dim:token, etc.)
+     * @return {Promise}
+     */
+    getCurrency(currency) {
+        let self = this;
+
+        return new Promise(function(resolve, reject) {
+            if (self.mosaicParameters.hasOwnProperty(currency)) {
+                return resolve(self.mosaicParameters[currency]);
+            }
+
+            let ns = currency.replace(/(.*):(.*)/, "$1");
+            let mos = currency.replace(/(.*):(.*)/, "$2");
+
+            self.api.SDK.com.requests
+                .namespace.mosaicDefinitions(self.api.node, ns)
+                .then((response) => {
+
+                let definitions = response.data || []
+                for (let d = 0; d < definitions.length; d++) {
+                    let s = self.api.SDK.utils.format.mosaicIdToName(definitions[d].id);
+                    if (s !== currency) continue;
+
+                    let params = self.parameters.fromMosaicDefinition(definitions[d]);
+                    return resolve((self.parameters.mosaicParameters[currency] = params));
+                }
+
+                return reject("Currency '" + currency + "' could not be identified on the NEM blockchain.");
+            })
+            .catch((err) => reject(err));
+        });
     }
 
     /**
@@ -73,7 +131,7 @@ class DIMExplorer {
     }
 
     /**
-     * This helper method lets you retireve the *Total Available Levy*
+     * This helper method lets you retrieve the *Total Available Levy*
      * amount from the Levy recipient account.
      *
      * The Total Available Levy represents 100% of the available network
@@ -92,7 +150,7 @@ class DIMExplorer {
                 .account.mosaics.owned(self.api.node, address)
                 .then((response) => {
 
-                let mosaics = response.data;
+                let mosaics = response.data || [];
                 for (let b = 0; b < mosaics.length; b++) {
                     let s = NEM.utils.format.mosaicIdToName(mosaics[b].mosaicId);
                     if (s !== "dim:coin") continue;
@@ -105,6 +163,25 @@ class DIMExplorer {
             .catch((err) => {
                 return reject(err);
             });
+        });
+    }
+
+    /**
+     * This helper method lets you retrieve the *Total Circulating Supply*
+     * of the said dim currency.
+     * 
+     * @param   {String}    currency    Mosaic name (dim:coin, dim:token, dim:eur, etc..)
+     * @return  {Promise}   The first argument to the promise is the total circulating supply.
+     */
+    getTotalCirculatingSupply(currency) {
+        let self = this;
+        let creator = self.parameters.getCoin().creator;
+        let address = self.api.SDK.model.address.toAddress(creator, self.api.networkId);
+
+        return new Promise(function(resolve, reject) { 
+            this.getCurrency(currency)
+                .then((parameters) => { return resolve(parameters.totalSupply); })
+                .catch((err) => reject(err));
         });
     }
 

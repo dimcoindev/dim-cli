@@ -101,7 +101,8 @@ class FormatterCSV extends Formatter {
             csv += row + "\r\n"; // add carriage return
         });
 
-        fs.writeFileSync(filePath, csv);
+        let header = head.length ? head + "\r\n" : "";
+        fs.writeFileSync(filePath, header + csv);
         return this;
     }
 

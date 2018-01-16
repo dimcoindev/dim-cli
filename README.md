@@ -85,6 +85,9 @@ $ dim-cli explorer --payoutFee --raw
 $ dim-cli finder
 $ dim-cli finder --format csv
 $ dim-cli finder --format xlsx
+
+# Use API wrapper to read dim ecosystem origin transactions
+$ dim-cli api --url /transaction/get?hash=dbe07d06b126196ee87d5bd7a10871caf3fd268d4db78eddac4ee309cae8b797 --network mainnet
 ```
 
 in the love of DIM <3

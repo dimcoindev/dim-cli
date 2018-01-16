@@ -37,6 +37,7 @@ class DIMParameters {
      * Construct the Formatter object
      */
     constructor() {
+
         /**
          * DIM Genesis date is: Wed, 07 Jun 2017 12:30:05 GMT
          * 
@@ -95,7 +96,8 @@ class DIMParameters {
                 "levy": {
                     "type": 2, // 1 = Absolute, 2 = "Percentile"
                     "fee": 10, // for 1000 dim:coin, levy = 0.000001 dim:coin,
-                    "recipient": "NCGGLVO2G3CUACVI5GNX2KRBJSQCN4RDL2ZWJ4DP"
+                    "recipient": "NCGGLVO2G3CUACVI5GNX2KRBJSQCN4RDL2ZWJ4DP",
+                    "mosaicId": {"namespaceId": "dim", "name": "coin" }
                 }
             },
             "dim:token": {
@@ -123,6 +125,54 @@ class DIMParameters {
 
     getEur() {
         return this.mosaicParameters["dim:eur"];
+    }
+
+    /**
+     * Load a currency parameter bundle from a given NEM
+     * mosaic definition.
+     *
+     * @see [NEM MosaicDefinition](https://nemproject.github.io/#mosaicDefinition)
+     * @param {MosaicDefinition} definition 
+     */
+    fromMosaicDefinition(definition) {
+        if (! definition.mosaic) throw new Error("Invalid mosaic definition provided to DIMParamaters.fromMosaicDefinition().");
+
+        let mosaic = definition.mosaic;
+
+        let creator = mosaic.creator;
+        let isMutable = false;
+        let levy = definition.levy || null;
+        let props = {
+            "divisibility": 6,
+            "initialSupply": 0,
+        };
+
+        let totalSupply = 0;
+
+        // read properties
+        for (let p = 0; p < mosaic.properties.length; p++) {
+            let key = mosaic.properties[p].name;
+            let val = mosaic.properties[p].value;
+
+            if (props.hasOwnProperty(key))
+                props[key] = val;
+            else if ("supplyMutable" == key)
+                isMutable = val === "true";
+        }
+
+        // if the mosaic is mutable, we will need to check for potential
+        // mosaic supply change transactions too.
+
+        totalSupply += props['initialSupply'];
+
+        //XXX implement : `isMutable` should trigger read of Mosaic Supply Change Transactions
+
+        return {
+            "creator": creator,
+            "divisibility": props['divisibility'],
+            "totalSupply": totalSupply,
+            "levy": levy
+        };
     }
 
 }
