@@ -474,7 +474,7 @@ class Command extends BaseCommand {
 
             // find dim:token in mosaics array.
             for (let j = 0, n = realData.mosaics.length; j < n; j++) {
-                let s = NEM.utils.format.mosaicIdToName(realData.mosaics[j].mosaicId);
+                let s = this.api.SDK.utils.format.mosaicIdToName(realData.mosaics[j].mosaicId);
                 if ("dim:token" != s) continue;
 
                 // found dim:token OUTPUT: store holder for further crawling.
@@ -528,14 +528,11 @@ class Command extends BaseCommand {
                 .account.mosaics.owned(this.api.node, address)
                 .then((response) => {
 
-                console.log("Response for mosaics.owned: " + JSON.stringify(response));
-
                 // update store amount for token holder OR remove
-                let mosaics = response.data;
-                let balances = !mosaics || !mosaics.length ? mosaics : [];
+                let balances = !response || !response.data ? response.data : [];
 
                 for (let b = 0; b < balances.length; b++) {
-                    let s = NEM.utils.format.mosaicIdToName(balances[b].mosaicId);
+                    let s = this.api.SDK.utils.format.mosaicIdToName(balances[b].mosaicId);
                     if (s !== "dim:token") continue;
 
                     console.log("Found tokens for " + address + ": " + balances[b].quantity + " dim:coin");
