@@ -281,52 +281,49 @@ class Command extends BaseCommand {
             this.storage.levels[nextLvlKey] = [];
         }
 
-        return new Promise(async function(resolve, reject) {
-            // crawl the first address, then crawl all found holders.
-            let tokenHolders = await this.crawlAddress(forAddress, null);
-            let levelHolders = Object.keys(tokenHolders).slice(beforeThisLevel);
+        // crawl the first address, then crawl all found holders.
+        let tokenHolders = await this.crawlAddress(forAddress, null);
+        let levelHolders = Object.keys(tokenHolders).slice(beforeThisLevel);
 
-            // update storage
-            totalTokenHolders += levelHolders.length;
-            this.storage.levels[nextLvlKey] = this.storage.levels[nextLvlKey].concat(levelHolders);
+        // update storage
+        totalTokenHolders += levelHolders.length;
+        this.storage.levels[nextLvlKey] = this.storage.levels[nextLvlKey].concat(levelHolders);
 
-            // check whether there is more token holder on the current level.
-            let nextLvl = parseInt(this.current);
-            if (! this.storage.levels[currLvlKey].length) {
-                // done with level, move to next.
-                this.clearTimeout();
-                nextLvl = ++this.current;
+        // check whether there is more token holder on the current level.
+        let nextLvl = parseInt(this.current);
+        if (! this.storage.levels[currLvlKey].length) {
+            // done with level, move to next.
+            this.clearTimeout();
+            nextLvl = ++this.current;
 
-                let cntNextLvl = this.storage.levels["level-" + nextLvl] ? this.storage.levels["level-" + nextLvl].length : 0;
-                if (0 === cntNextLvl) {
-                    // no entries in next level - DONE (BREAK RECURSION)
-                    return resolve(levelHolders.length);
-                }
-
-                this.log("Now handling Level " + this.current + " with " + cntNextLvl + " potential token holders.");
-
-                // starting new level, may take some time.
-                this.addTimeout();
-            }
-
-            // move to next level if available
-            currLvlKey = "level-" + parseInt(nextLvl);
-            if (!this.storage.levels.hasOwnProperty(currLvlKey)) {
-                // no more levels - DONE (BREAK RECURSION).
+            let cntNextLvl = this.storage.levels["level-" + nextLvl] ? this.storage.levels["level-" + nextLvl].length : 0;
+            if (0 === cntNextLvl) {
+                // no entries in next level - DONE (BREAK RECURSION)
                 return resolve(levelHolders.length);
             }
 
-            let next = this.storage.levels[currLvlKey].shift();
-            this.index++;
-            if (!next || !next.length) {
-                // no more entries - DONE (BREAK RECURSION).
-                return resolve(levelHolders.length);
-            }
+            this.log("Now handling Level " + this.current + " with " + cntNextLvl + " potential token holders.");
 
-            // RECURSION: crawl next token holder
-            return await this.startCrawler(next, nextLvl);
+            // starting new level, may take some time.
+            this.addTimeout();
+        }
 
-        }.bind(this));
+        // move to next level if available
+        currLvlKey = "level-" + parseInt(nextLvl);
+        if (!this.storage.levels.hasOwnProperty(currLvlKey)) {
+            // no more levels - DONE (BREAK RECURSION).
+            return levelHolders.length;
+        }
+
+        let next = this.storage.levels[currLvlKey].shift();
+        this.index++;
+        if (!next || !next.length) {
+            // no more entries - DONE (BREAK RECURSION).
+            return levelHolders.length;
+        }
+
+        // RECURSION: crawl next token holder
+        return await this.startCrawler(next, nextLvl);
     }
 
     /**
@@ -363,27 +360,23 @@ class Command extends BaseCommand {
     async crawlAddress(cAddress, beforeTrxId) {
         let pageSize = 25;
 
-        return new Promise(async function(resolve, reject) 
-        {
-            let response = await this.readTransactions(cAddress, beforeTrxId);
-            let transactions = response.data;
-            if (!transactions || !transactions.length) {
-                // account empty
-                return resolve(this.storage.accounts);
-            }
+        let response = await this.readTransactions(cAddress, beforeTrxId);
+        let transactions = response.data;
+        if (!transactions || !transactions.length) {
+            // account empty
+            return this.storage.accounts;
+        }
 
-            // save the read transactions to avoid re-processing
-            let res = this.processTransactions(transactions, pageSize);
+        // save the read transactions to avoid re-processing
+        let res = this.processTransactions(transactions, pageSize);
 
-            if (false === res.status) {
-                // done reading transactions
-                return resolve(this.storage.accounts);
-            }
+        if (false === res.status) {
+            // done reading transactions
+            return this.storage.accounts;
+        }
 
-            // continue crawling current address (there is more transactions).
-            return await this.crawlAddress(cAddress, res.lastId);
-
-        }.bind(this));
+        // continue crawling current address (there is more transactions).
+        return await this.crawlAddress(cAddress, res.lastId);
     }
 
     /**
@@ -396,13 +389,10 @@ class Command extends BaseCommand {
      */
     async readTransactions(address, beforeTrxId) {
         // promise request result
-        return new Promise(async function(resolve, reject) 
-        {
-            let transactions = await this.api.SDK.com.requests
+        let transactions = await this.api.SDK.com.requests
                                          .account.transactions
                                          .outgoing(this.api.node, address, null, beforeTrxId);
-            return resolve(transactions);
-        }.bind(this));
+        return transactions;
     }
 
     /**
@@ -499,53 +489,48 @@ class Command extends BaseCommand {
 
         //console.log("Filtering holders out of " + remaining.length + " accounts.");
 
-        // promise request result
-        return new Promise(async function(resolve, reject) 
-        {
-            let address = remaining.shift();
-            let response = await this.api.SDK.com.requests
-                                     .account.mosaics
-                                     .owned(this.api.node, address);
-            // update store amount for token holder OR remove
-            let balances = !response || !response.data ? response.data : [];
+        let address = remaining.shift();
+        let response = await this.api.SDK.com.requests
+                                    .account.mosaics
+                                    .owned(this.api.node, address);
+        // update store amount for token holder OR remove
+        let balances = !response || !response.data ? response.data : [];
 
-            for (let b = 0; b < balances.length; b++) {
-                let s = this.api.SDK.utils.format.mosaicIdToName(balances[b].mosaicId);
-                if (s !== "dim:token") continue;
+        for (let b = 0; b < balances.length; b++) {
+            let s = this.api.SDK.utils.format.mosaicIdToName(balances[b].mosaicId);
+            if (s !== "dim:token") continue;
 
-                console.log("Found tokens for " + address + ": " + balances[b].quantity + " dim:coin");
+            console.log("Found tokens for " + address + ": " + balances[b].quantity + " dim:coin");
 
-                if (balances[b].quantity < this.parameters.minTokenHolderShare) {
-                    // token holder DOES NOT meet requirement.
-                    continue;
-                }
-
-                // token holder MEETS requirements
-                dimTokenHolders[address] = balances[b].quantity;
-
-                this.formatterAccts.writeRows([{
-                    "holderAddress": address,
-                    "stakeQuantity": balances[b].quantity
-                }]);
-
-                let holder = new DIM.TokenHolder({
-                    address: address,
-                    tokenAmount: balances[b].quantity,
-                    createdAt: (new Date).valueOf(),
-                    updatedAt: 0
-                });
-                holder.save();
+            if (balances[b].quantity < this.parameters.minTokenHolderShare) {
+                // token holder DOES NOT meet requirement.
+                continue;
             }
 
-            // In case we still have accounts to iterate over, RECURSION.
-            if (remaining.length) {
-                return await this.filterByTokenHolderElligibility(remaining, dimTokenHolders);
-            }
+            // token holder MEETS requirements
+            dimTokenHolders[address] = balances[b].quantity;
 
-            // RECURSION DONE
-            return resolve(Object.keys(dimTokenHolders).length, dimTokenHolders);
+            this.formatterAccts.writeRows([{
+                "holderAddress": address,
+                "stakeQuantity": balances[b].quantity
+            }]);
 
-        }.bind(this));
+            let holder = new DIM.TokenHolder({
+                address: address,
+                tokenAmount: balances[b].quantity,
+                createdAt: (new Date).valueOf(),
+                updatedAt: 0
+            });
+            holder.save();
+        }
+
+        // In case we still have accounts to iterate over, RECURSION.
+        if (remaining.length) {
+            return await this.filterByTokenHolderElligibility(remaining, dimTokenHolders);
+        }
+
+        // RECURSION DONE
+        return [Object.keys(dimTokenHolders).length, dimTokenHolders];
     }
 
 }

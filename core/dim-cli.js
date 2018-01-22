@@ -136,10 +136,10 @@ Object.getOwnPropertyNames(_commands)
         });
     }
 
-    sub.action(function(opts) 
+    sub.action(async function(opts) 
     {
         cmd.init(opts);
-        return cmd.run(opts);
+        return await cmd.run(opts);
     });
 });
 
