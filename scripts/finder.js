@@ -192,7 +192,7 @@ class Command extends BaseCommand {
             case 'json': this.formatterAccts = new FormatterJSON(); break;
             case 'csv':  this.formatterAccts = new FormatterCSV(); break;
         }
-        
+
         // open logging resources
         this.formatterAccts.init(filePath);
 
@@ -220,8 +220,7 @@ class Command extends BaseCommand {
             let unfilteredTokenHoldersCount = Object.keys(this.storage.accounts).length;
 
             // FILTER all holders (token holders must have more than 50 dim:token)
-            let [elligibleTokenHoldersCount, 
-                dimTokenHolders] = await this.filterByTokenHolderElligibility(Object.keys(this.storage.accounts), this.storage.tokenHolders);
+            let elligibleTokenHoldersCount = await this.filterByTokenHolderElligibility(Object.keys(this.storage.accounts), this.storage.tokenHolders);
 
             // DONE FILTERING HOLDERS
             this.formatterAccts.save();
@@ -265,7 +264,7 @@ class Command extends BaseCommand {
     /**
      * This method will start the dim:token crawler.
      * 
-     * @return {Object}
+     * @return {Integer}
      */
     async startCrawler(forAddress, lvl) {
         let level = lvl || 1;
@@ -340,22 +339,22 @@ class Command extends BaseCommand {
 
     /**
      * Add a console message whenever a process is longer than 3 minutes.
+     * 
+     * @return {Object}
      */
     addTimeout() {
-        var self = this;
+        this.timeout = setInterval(function () {
+            console.log("Still processing (Level " + this.current + ", Holder #" + this.index + ") ..");
+        }.bind(this), 3 * 60 * 1000);
 
-        this.timeout = setInterval(() => {
-            console.log("Still processing (Level " + self.current + ", Holder #" + self.index + ") ..");
-        }, 3 * 60 * 1000);
-
-        return self;
+        return this;
     }
 
     /**
      * This method crawls *all* transactions containing dim:token
      * to determine a *full and exhaustive* list of *dim:token holders*.
      *
-     * @return {Promise}
+     * @return {Object}
      */
     async crawlAddress(cAddress, beforeTrxId) {
         let pageSize = 25;
@@ -481,7 +480,7 @@ class Command extends BaseCommand {
      * than 50 tokens when the payout data is exported.
      *
      * @param {Array} transactions 
-     * @return {Object}
+     * @return {Integer}
      */
     async filterByTokenHolderElligibility(addresses, holders) {
         let remaining = addresses || [];
@@ -493,19 +492,22 @@ class Command extends BaseCommand {
         let response = await this.api.SDK.com.requests
                                     .account.mosaics
                                     .owned(this.api.node, address);
-        // update store amount for token holder OR remove
-        let balances = !response || !response.data ? response.data : [];
+
+        // update stored amount for token holder OR remove
+        let balances = response && response.data ? response.data : [];
 
         for (let b = 0; b < balances.length; b++) {
             let s = this.api.SDK.utils.format.mosaicIdToName(balances[b].mosaicId);
             if (s !== "dim:token") continue;
 
-            console.log("Found tokens for " + address + ": " + balances[b].quantity + " dim:coin");
-
             if (balances[b].quantity < this.parameters.minTokenHolderShare) {
                 // token holder DOES NOT meet requirement.
                 continue;
             }
+
+            let formattedBalance = (balances[b].quantity / Math.pow(10, 6)).toFixed(6);
+            console.log("Found DIM.TokenHolder with " + address 
+                        + " and " + formattedBalance + " dim:token");
 
             // token holder MEETS requirements
             dimTokenHolders[address] = balances[b].quantity;
@@ -515,13 +517,7 @@ class Command extends BaseCommand {
                 "stakeQuantity": balances[b].quantity
             }]);
 
-            let holder = new DIM.TokenHolder({
-                address: address,
-                tokenAmount: balances[b].quantity,
-                createdAt: (new Date).valueOf(),
-                updatedAt: 0
-            });
-            holder.save();
+            let cached = await this.saveDimTokenHolderCache(address, balances[b].quantity);
         }
 
         // In case we still have accounts to iterate over, RECURSION.
@@ -530,9 +526,38 @@ class Command extends BaseCommand {
         }
 
         // RECURSION DONE
-        return [Object.keys(dimTokenHolders).length, dimTokenHolders];
+        return Object.keys(dimTokenHolders).length;
     }
 
+    /**
+     * Save a database cache entry for this DIM Token Holder.
+     * 
+     * @param {String} address  NEM Mainnet address
+     * @param {Integer} tokenAmount   Micro dim:token amount (divisibility is 6)
+     * @return {Boolean}
+     */
+    async saveDimTokenHolderCache(address, tokenAmount) {
+
+        let holder = await DIM.TokenHolder.createModel().findByField("address", address);
+
+        if (holder) {
+            // update..
+            holder.updatedAt = (new Date).valueOf();
+        }
+        else {
+            // JiT creation
+            holder = new DIM.TokenHolder({
+                address: address,
+                tokenAmount: tokenAmount,
+                createdAt: (new Date).valueOf(),
+                updatedAt: 0
+            });
+        }
+
+        holder.tokenAmount = tokenAmount;
+        holder.save();
+        return true;
+    }
 }
 
 exports.Command = Command;

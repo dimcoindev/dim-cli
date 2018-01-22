@@ -61,11 +61,17 @@ class Formatter {
      * @param {String} filepath     Absolute file path with file name.
      * @return {Formatter}
      */
-    init(filepath) {
-        this.filepath = filepath;
-        if (fs.existsSync(this.filepath)) {
+    init(filepath, append = false) {
+        this.filepath  = filepath;
+        let fileExists = fs.existsSync(this.filepath);
+        if (fileExists && append === true) {
             // read already available workbook.
             this.rows = this.__fromFile(this.filepath);
+        }
+        else if (fileExists) {
+            // must empty file
+            this.rows = [];
+            this.save();
         }
 
         return this;
