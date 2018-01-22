@@ -17,8 +17,6 @@
 "use strict";
 
 import DIMModel from "./base";
-import mongoose from "mongoose";
-import increment from "mongoose-increment";
 import NEM from "nem-sdk";
 
 class DIMTransaction extends DIMModel {
@@ -29,14 +27,14 @@ class DIMTransaction extends DIMModel {
     constructor(data) {
         super(data);
 
-        this.schema = new this.builder.Schema({
+        this.schema = new this.adapter.Schema({
             nemId: { type: Number, min: 0 },
             nemHash: String,
             dimCurrencies: { type: Array },
             createdAt: { type: Number, min: 0 }
         });
 
-        this.model = this.builder.model("DIMTransaction", this.schema);
+        this.model = this.adapter.model("DIMTransaction", this.schema);
     }
 
     /**

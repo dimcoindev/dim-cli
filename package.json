@@ -1,6 +1,6 @@
 {
   "name": "dim-cli",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "author": "DIMCoin Developers",
   "description": "DIM-cli is a collection of command line tools for the DIM Ecosystem using the Terminal",
   "keywords": [
@@ -47,7 +47,7 @@
   },
   "scripts": {
     "test": "mocha --compilers js:babel-core/register --recursive tests/",
-    "build": "babel core/ scripts/ --presets babel-preset-es2015 --out-dir build",
+    "build": "babel core/ sdk/ scripts/ --presets babel-preset-es2015 --out-dir build",
     "postinstall": "npm run build",
     "postversion": "git push origin master && git push --tags",
     "start": "./babel-node dim-cli",

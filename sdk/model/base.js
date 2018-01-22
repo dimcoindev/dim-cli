@@ -16,17 +16,7 @@
  */
 "use strict";
 
-import DIMModel from "./base";
-import mongoose from "mongoose";
-import increment from "mongoose-increment";
-
-host = process.env['MONGODB_URI'] || process.env['MONGOLAB_URI'] || "mongodb://localhost/db_dimcoin";
-mongoose.connect(host, function(err, res) {
-    if (err)
-        console.log("ERROR with DIM-cli MongoDB database (" + host + "): " + err);
-    else
-        console.log("DIM-cli Database connection is now up with " + host);
-});
+import DIMDatabaseCache from "./dim-dbcache";
 
 class DIMModel {
 
@@ -41,7 +31,7 @@ class DIMModel {
          * 
          * @var {mongoose}
          */
-        this.builder = mongoose;
+        this.adapter = new DIMDatabaseCache();
 
         /**
          * The mongoose Schema for the current DIM model instance.
@@ -69,10 +59,45 @@ class DIMModel {
      * Helper method to *create a model instance* of the 
      * underlying Model class (extending this).
      * 
+     * @param  {Array}  data
      * @return {DIMModel}
      */
-    createModel() {
+    createModel(data) {
+        return this.model(data);
+    }
 
+    /**
+     * Helper method to quickly fetch an entry by a field
+     * value.
+     * 
+     * @param {String} field 
+     * @param {Mixed} value 
+     * @return {DIMModel}
+     */
+    async findByField(field, value) {
+        let query = {};
+        query[field] = value;
+
+        return await this.findOne(query);
+    }
+
+    /**
+     * Helper method to quickly fetch one entry by a given
+     * MongoDB Query.
+     * 
+     * @param {Object} query 
+     * @return {Promise}
+     */
+    async findOne(query) {
+        return new Promise(function(resolve, reject) {
+            this.model.findOne(query, function(err, result) {
+                if (!err && result) {
+                    return resolve(result);
+                }
+
+                return reject(err);
+            });
+        }, this);
     }
 }
 
