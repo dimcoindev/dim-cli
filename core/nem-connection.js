@@ -192,7 +192,7 @@ class NEMNetworkConnection {
      *
      * @param {string} address 
      */
-    getNetworkForAddress(address)
+    static getNetworkForAddress(address)
     {
         let char = address.substr(0, 1);
         let nets = {

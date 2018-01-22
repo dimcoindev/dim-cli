@@ -17,7 +17,6 @@
 "use strict";
 
 import BaseCommand from "../core/command";
-import Request from "request";
 
 import * as JSONBeautifier from "prettyjson";
 
@@ -113,14 +112,14 @@ class Command extends BaseCommand {
      * @param   {object}    env
      * @return  {void}
      */
-    run(env) {
+    async run(env) {
 
         let self = this;
 
         let isPost  = env.post === true;
         let hasJson = env.json !== undefined;
         let hasParams = env.params !== undefined;
-        let hasQuery = env.url && env.url.length ? env.url.match(/\?[a-z0-9=_\-\+%]+$/i) : false;
+        let hasQuery = env.url && env.url.length ? env.url.match(/\?[a-z0-9=_\-\+%&'\[\]]+$/i) : false;
         let apiUrl  = env.url;
         let hasHelp = env.help === true;
         let isVerbose = env.verbose === true;
@@ -135,7 +134,11 @@ class Command extends BaseCommand {
             // parameter was passed. This might indicate that we need to
             // use a different network than the default one (TestNet).
 
-            this.switchNetworkByQS(apiUrl);
+            this.api.switchNetworkByQS(apiUrl);
+        }
+        else {
+            // Connect to the NIS API
+            this.api.connect();
         }
 
         // build the HTTP request dump
@@ -169,19 +172,15 @@ class Command extends BaseCommand {
         // Done preparing HTTP request.
 
         if ("GET" === method) {
-            this.apiGet(apiUrl, body, headers, function(response)
-                {
-                    self.outputResponse(response);
-                    return self.end() 
-                });
+            let response = await this.api.get(apiUrl, body, headers);
+            this.outputResponse(response);
         }
         else if ("POST" === method) {
-            this.apiPost(apiUrl, body, headers, function(response)
-                {
-                    self.outputResponse(response);
-                    return self.end() 
-                });
+            let response = await this.api.post(apiUrl, body, headers);
+            this.outputResponse(response);
         }
+
+        return this.end();
     }
 
     /**
@@ -222,24 +221,11 @@ class Command extends BaseCommand {
      * @param   {object}    headers     HTTP Headers
      * @param   {Function}  callback    Success callback
      */
-    apiGet(url, body, headers, callback) {
+    async apiGet(url, body, headers) {
         if (this.argv.verbose)
             this.dumpRequest("GET", url, body, headers)
 
-        var fullUrl  = this.node.host + ":" + this.node.port + url;
-        var wrapData = {
-            url: fullUrl,
-            headers: headers,
-            method: 'GET'
-        };
-
-        if (body && body.length)
-            wrapData.json = JSON.parse(body);
-
-        Request(wrapData, function(error, response, body) {
-            let res = response.toJSON();
-            return callback(res.body);
-        });
+        return await this.api.get(url, body, headers);
     }
 
     /**
@@ -252,24 +238,11 @@ class Command extends BaseCommand {
      * @param   {Function}  callback    Success callback
      * @return  void
      */
-    apiPost(url, body, headers, callback) {
+    async apiPost(url, body, headers, callback) {
         if (this.argv.verbose)
             this.dumpRequest("POST", url, body, headers)
 
-        var fullUrl  = this.node.host + ":" + this.node.port + url;
-        var wrapData = {
-            url: fullUrl,
-            headers: headers,
-            method: 'POST'
-        };
-
-        if (body && body.length)
-            wrapData.json = JSON.parse(body);
-
-        Request(wrapData, function(error, response, body) {
-            let res = response.toJSON();
-            return callback(res.body);
-        });
+        return await this.api.post(url, body, headers);
     }
 
     /**

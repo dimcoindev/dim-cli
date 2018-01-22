@@ -44,10 +44,28 @@ class DIMDatabaseCache {
         // Connect to MongoDB
         this.adapter.connect(this.host, function(err, res) {
             if (err)
-                console.log("ERROR with DIM-cli MongoDB database (" + host + "): " + err);
+                console.log("ERROR with DIM-cli MongoDB database (" + this.host + "): " + err);
             else
-                console.log("DIM-cli Database connection is now up with " + host);
-        });
+                console.log("DIM-cli Database connection is now up with " + this.host);
+        }.bind(this));
+    }
+
+    /**
+     * Getter for the DB adapter.
+     * 
+     * @return {Object}
+     */
+    getDb() {
+        return this.adapter;
+    }
+
+    /**
+     * Getter for the DB connection host.
+     * 
+     * @return {String}
+     */
+    getHost() {
+        return this.host;
     }
 }
 

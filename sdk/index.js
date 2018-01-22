@@ -16,14 +16,12 @@
  */
 "use strict";
 
-import Transaction from './model/dim-transaction';
-import Wallet from './model/dim-wallet';
-import TokenHolder from './model/dim-tokenholder';
+import DIMTransaction from './model/dim-transaction';
+import DIMWallet from './model/dim-wallet';
+import DIMTokenHolder from './model/dim-tokenholder';
 
 export default {
-    DIM: {
-        Transaction,
-        Wallet,
-        TokenHolder
-    }
+    Transaction: DIMTransaction,
+    Wallet: DIMWallet,
+    TokenHolder: DIMTokenHolder
 };

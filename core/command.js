@@ -17,10 +17,9 @@
 "use strict";
 
 import ConsoleInput from "./console-input";
-import NEMNetworkConnection from "./nem-connection";
+import NISWrapper from "./nis-wrapper";
 
 import * as JSONBeautifier from "prettyjson";
-const { URLSearchParams } = require('url');
 
 var Menu = require("simple-terminal-menu");
 var Table = require("easy-table");
@@ -101,6 +100,13 @@ class BaseCommand {
          * @var {object}
          */
         this.argv = {};
+
+        /**
+         * The NIS API Wrapper.
+         * 
+         * @var {NISWrapper}
+         */
+        this.api = undefined;
     }
 
     /**
@@ -194,38 +200,21 @@ class BaseCommand {
      */
     init(options) {
         this.argv = options;
+        this.api  = new NISWrapper(this.argv);
+    }
 
-        // prepare connection to NEM network
-        let defaultNodes = {
-            "mainnet": "hugealice.nem.ninja",
-            "testnet": "bigalice2.nem.ninja"
-        };
-
-        let network = "testnet";
-        let port = this.argv.port ? parseInt(this.argv.port) : 7890;
-        let node = this.argv.node && this.argv.node.length ? this.argv.node : "bigalice2.nem.ninja";
-
-        if (this.argv.network) {
-            // --network has precedence over --node
-
-            network = this.argv.network.toLowerCase();
-            if (! defaultNodes.hasOwnProperty(network))
-                network = "testnet";
-
-            node =  defaultNodes[network];
+    /**
+     * Helper to create and connect the NIS API Wrapper
+     * with set command line arguments.
+     * 
+     * @return {NISWrapper}
+     */
+    getNISClient() {
+        if (! this.api) {
+            this.api = new NISWrapper(this.argv);
         }
 
-        let nsch = node.match(/^http/) ? node.replace(/:\/\/.*/, '') : null;
-        node     = node.replace(/https?:\/\//, '');
-
-        let scheme = this.argv.forceSsl ? "https" : (nsch ? nsch : "http");
-
-        // set connection object
-        this.conn = new NEMNetworkConnection(network, scheme + "://" + node, port);
-        this.SDK  = this.conn.SDK;
-        this.node = this.SDK.model.objects.create("endpoint")(this.conn.getHost(), this.conn.getPort());
-        this.network = network;
-        this.networkId = this.SDK.model.network.data[network].id;
+        return this.api;
     }
 
     /**
@@ -279,44 +268,6 @@ class BaseCommand {
      */
     getInput() {
         return this.io;
-    }
-
-    /**
-     * The switchNetworkByQS method will identify potential a `address`
-     * parameter in the query string of the URL provided.
-     *
-     * @param {string} url 
-     */
-    switchNetworkByQS(url) {
-
-        let hasQuery = url && url.length ? url.match(/\?[a-z0-9=_\-\+%]+$/i) : false;
-        if (! hasQuery)
-            return "testnet";
-
-        // most common use case: endpoint?address=..
-        let query = url.replace(/(.*)(\?[a-z0-9=_\-\+%]+)$/i, "$2");
-        let urlParams = new URLSearchParams(query);
-
-        if (urlParams.has("address")) {
-            // address parameter found, we will determine the network by 
-            // the address parameter whenever an address is identified.
-
-            let addr = urlParams.get("address");
-            return this.switchNetworkByAddress(addr);
-        }
-    }
-
-    /**
-     * Switch the currently set NEM NETWORK to the one retrieved
-     * from the given `address`.
-     *  
-     * @param {String} address  NEM Wallet Address
-     */
-    switchNetworkByAddress(address) {
-        let network = this.conn.getNetworkForAddress(address);
-        if (network != this.network)
-            // re-init with new network identified by address.
-            this.init({"network": network});
     }
 
     /**

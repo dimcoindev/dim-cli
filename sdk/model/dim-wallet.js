@@ -26,15 +26,7 @@ class DIMWallet extends DIMModel {
     constructor(data) {
         super(data);
 
-        this.schema = new this.adapter.Schema({
-            address: String,
-            dimCurrencies: { type: Array },
-            dimHolderAt: { type: Number, min: 0 },
-            createdAt: { type: Number, min: 0 },
-            updatedAt: { type: Number, min: 0 }
-        });
-
-        this.model = this.adapter.model("DIMWallet", this.schema);
+        this.model = this.schema.Wallet;
     }
 }
 

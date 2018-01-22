@@ -74,36 +74,31 @@ class DIMExplorer {
      * blockchain network.
      *
      * @param {String} currency     Fully qualified mosaic name (dim:coin, dim:token, etc.)
-     * @return {Promise}
+     * @return {Object|null}
      */
-    getCurrency(currency) {
-        let self = this;
+    async getCurrency(currency) {
 
-        return new Promise(function(resolve, reject) {
-            if (self.mosaicParameters.hasOwnProperty(currency)) {
-                return resolve(self.mosaicParameters[currency]);
-            }
+        if (this.mosaicParameters.hasOwnProperty(currency)) {
+            return this.mosaicParameters[currency];
+        }
 
-            let ns = currency.replace(/(.*):(.*)/, "$1");
-            let mos = currency.replace(/(.*):(.*)/, "$2");
+        let ns = currency.replace(/(.*):(.*)/, "$1");
+        let mos = currency.replace(/(.*):(.*)/, "$2");
 
-            self.api.SDK.com.requests
-                .namespace.mosaicDefinitions(self.api.node, ns)
-                .then((response) => {
+        // request MosaicDefinition from NIS
+        let response = await this.api.SDK.com.requests
+                                 .namespace.mosaicDefinitions(this.api.node, ns);
 
-                let definitions = response.data || []
-                for (let d = 0; d < definitions.length; d++) {
-                    let s = self.api.SDK.utils.format.mosaicIdToName(definitions[d].id);
-                    if (s !== currency) continue;
+        let definitions = response.data || [];
+        for (let d = 0; d < definitions.length; d++) {
+            let s = this.api.SDK.utils.format.mosaicIdToName(definitions[d].id);
+            if (s !== currency) continue;
 
-                    let params = self.parameters.fromMosaicDefinition(definitions[d]);
-                    return resolve((self.parameters.mosaicParameters[currency] = params));
-                }
+            let params = this.parameters.fromMosaicDefinition(definitions[d]);
+            return (this.parameters.mosaicParameters[currency] = params);
+        }
 
-                return reject("Currency '" + currency + "' could not be identified on the NEM blockchain.");
-            })
-            .catch((err) => reject(err));
-        });
+        return null;
     }
 
     /**
@@ -113,21 +108,17 @@ class DIMExplorer {
      * The Total Available Levy represents 30% of the available network
      * fees.
      *
-     * @return {Promise}
+     * @return {Integer}
      */
-    getTotalHoldersShareLevyAmount() {
+    async getTotalHoldersShareLevyAmount() {
         let self = this;
 
-        return new Promise(function(resolve, reject) {
-            self.getTotalAvailableLevyAmount()
-                .then((hundredPercentLevyAmount) => {
+        // get 100% of network fees
+        let hundredPercentLevyAmount = await this.getTotalAvailableLevyAmount();
 
-                // now calculate 30 %
-                let thirtyPercentLevyAmount = Math.ceil(0.3 * hundredPercentLevyAmount);
-                return resolve(thirtyPercentLevyAmount);
-            })
-            .catch((err) => reject(err));
-        });
+        // now calculate 30 %
+        let thirtyPercentLevyAmount = Math.ceil(0.3 * hundredPercentLevyAmount);
+        return thirtyPercentLevyAmount;
     }
 
     /**
@@ -137,33 +128,25 @@ class DIMExplorer {
      * The Total Available Levy represents 100% of the available network
      * fees.
      *
-     * @return {Promise}
+     * @return {Integer}
      */
-    getTotalAvailableLevyAmount() {
+    async getTotalAvailableLevyAmount() {
         let self = this;
         let address = self.parameters.mosaicParameters["dim:coin"].levy.recipient;
 
-        // promise request result
-        return new Promise(function(resolve, reject) 
-        {
-            self.api.SDK.com.requests
-                .account.mosaics.owned(self.api.node, address)
-                .then((response) => {
+        // fetch Total balance from Levy Account
+        let response = await this.api.SDK.com.requests
+                                 .account.mosaics.owned(self.api.node, address);
 
-                let mosaics = response.data || [];
-                for (let b = 0; b < mosaics.length; b++) {
-                    let s = NEM.utils.format.mosaicIdToName(mosaics[b].mosaicId);
-                    if (s !== "dim:coin") continue;
+        let mosaics = response.data || [];
+        for (let b = 0; b < mosaics.length; b++) {
+            let s = NEM.utils.format.mosaicIdToName(mosaics[b].mosaicId);
+            if (s !== "dim:coin") continue;
 
-                    return resolve(mosaics[b].quantity);
-                }
+            return mosaics[b].quantity;
+        }
 
-                return resolve(0);
-            })
-            .catch((err) => {
-                return reject(err);
-            });
-        });
+        return 0;
     }
 
     /**
@@ -171,18 +154,18 @@ class DIMExplorer {
      * of the said dim currency.
      * 
      * @param   {String}    currency    Mosaic name (dim:coin, dim:token, dim:eur, etc..)
-     * @return  {Promise}   The first argument to the promise is the total circulating supply.
+     * @return  {Integer}   The first argument to the promise is the total circulating supply.
      */
-    getTotalCirculatingSupply(currency) {
+    async getTotalCirculatingSupply(currency) {
         let self = this;
         let creator = self.parameters.getCoin().creator;
         let address = self.api.SDK.model.address.toAddress(creator, self.api.networkId);
 
-        return new Promise(function(resolve, reject) { 
-            this.getCurrency(currency)
-                .then((parameters) => { return resolve(parameters.totalSupply); })
-                .catch((err) => reject(err));
-        });
+        let parameters = await this.getCurrency(currency);
+        if (!parameters)
+            return 0;
+
+        return parameters.totalSupply;
     }
 
 }

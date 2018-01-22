@@ -95,7 +95,7 @@ class Command extends BaseCommand {
      * @param   {object}    env
      * @return  void
      */
-    run(env) {
+    async run(env) {
 
         this.isRawMode = env.raw ? true : false;
 
@@ -114,12 +114,11 @@ class Command extends BaseCommand {
             return this.end();
         }
 
-        let options = this.argv;
-        if (!options.network)
-            options.network = "mainnet"; // DIM Network ID 104 = NEM Mainnet
+        if (!this.argv.network)
+            this.argv.network = "mainnet"; // DIM Network ID 104 = NEM Mainnet
 
-        this.api = new NIS(this.npmPackage);
-        this.api.init(options);
+        this.api.argv = this.argv;
+        this.api.connect();
 
         this.explorer = new DIMExplorer(this.api);
 
@@ -128,29 +127,21 @@ class Command extends BaseCommand {
             // -------------------------------------
             // This amount represents 100% of the available dim:coin Network Levy.
 
-            this.explorer.getTotalAvailableLevyAmount()
-                .then((totalLevy) => { 
-
-                return this.outputResponse("Total Network Fee ", totalLevy, "dim:coin")
-                           .end();
-            })
-            .catch((err) => console.error(err));
+            let totalLevy = await this.explorer.getTotalAvailableLevyAmount();
+            this.outputResponse("Total Network Fee ", totalLevy, "dim:coin");
         }
-        else if (env.payoutFee) {
+
+        if (env.payoutFee) {
             // Print the TOTAL TOKEN HOLDER FEE SHARE
             // --------------------------------------
             // This amount represents 30% of the available dim:coin Token Holder Levy Share.
             // This is the amount that must be *paid out* weekly.
 
-            this.explorer.getTotalHoldersShareLevyAmount()
-                .then((holdersShareLevy) => { 
-
-                return this.outputResponse("Token Holder Fee Share: ", holdersShareLevy, "dim:coin")
-                           .end();
-            })
-            .catch((err) => console.error(err));
+            let holdersShareLevy = await this.explorer.getTotalHoldersShareLevyAmount();
+            this.outputResponse("Token Holder Fee Share: ", holdersShareLevy, "dim:coin")
         }
-        else if (env.totalSupply) {
+
+        if (env.totalSupply) {
             // Print the TOTAL CIRCULATING SUPPLY OF CURRENCY
             // ----------------------------------------------
             // The returned amount represents the TOTAL available supply
@@ -164,18 +155,11 @@ class Command extends BaseCommand {
                 return this.end();
             }
 
-            this.explorer.getTotalCirculatingSupply(currency)
-                .then((totalSupply) => { 
+            let totalSupply = await this.explorer.getTotalCirculatingSupply(currency);
+            this.outputResponse("Total supply of '" + currency + "' is ", totalSupply, "dim:coin");
+        }
 
-                return this.outputResponse("Total supply of '" + currency + "' is ", totalSupply, "dim:coin")
-                           .end();
-            })
-            .catch((err) => console.error(err));
-        }
-        else {
-            this.help();
-            return this.end();
-        }
+        return this.end();
     }
 
     /**

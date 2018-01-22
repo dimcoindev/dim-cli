@@ -16,7 +16,7 @@
  */
 "use strict";
 
-import DIMDatabaseCache from "./dim-dbcache";
+import DIMSchema from "./dim-schema";
 
 class DIMModel {
 
@@ -26,19 +26,13 @@ class DIMModel {
      * This will connect to the database in case it is not done yet.
      */
     constructor(data) {
-        /**
-         * The mongoose Builder for the current DIM model instance.
-         * 
-         * @var {mongoose}
-         */
-        this.adapter = new DIMDatabaseCache();
 
         /**
          * The mongoose Schema for the current DIM model instance.
          *
          * @var {mongoose.Schema}
          */
-        this.schema = undefined;
+        this.schema = DIMSchema.instance();
 
         /**
          * The mongoose Model for the current DIM model instance.
@@ -88,16 +82,19 @@ class DIMModel {
      * @param {Object} query 
      * @return {Promise}
      */
-    async findOne(query) {
+    findOne(query) {
         return new Promise(function(resolve, reject) {
             this.model.findOne(query, function(err, result) {
+
+                Object.assign(this, result);
+
                 if (!err && result) {
-                    return resolve(result);
+                    return resolve(this);
                 }
 
-                return reject(err);
-            });
-        }, this);
+                return resolve(null);
+            }.bind(this));
+        }.bind(this));
     }
 }
 

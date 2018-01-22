@@ -32,17 +32,10 @@ class DIMTokenHolder extends DIMModel {
     /**
      * Configure this model instance.
      */
-    constructor(data) {
+    constructor(data = {}) {
         super(data);
 
-        this.schema = new this.adapter.Schema({
-            address: String,
-            tokenAmount: { type: Number, min: 0 },
-            createdAt: { type: Number, min: 0 },
-            updatedAt: { type: Number, min: 0 }
-        });
-
-        this.model = this.adapter.model("DIMTokenHolder", this.schema);
+        this.model = this.schema.TokenHolder;
     }
 }
 

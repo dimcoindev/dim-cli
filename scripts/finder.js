@@ -538,7 +538,8 @@ class Command extends BaseCommand {
      */
     async saveDimTokenHolderCache(address, tokenAmount) {
 
-        let holder = await DIM.TokenHolder.createModel().findByField("address", address);
+        let holder = new DIM.TokenHolder({});
+        holder = await holder.findByField("address", address);
 
         if (holder) {
             // update..
