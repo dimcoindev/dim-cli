@@ -299,7 +299,7 @@ class Command extends BaseCommand {
             let cntNextLvl = this.storage.levels["level-" + nextLvl] ? this.storage.levels["level-" + nextLvl].length : 0;
             if (0 === cntNextLvl) {
                 // no entries in next level - DONE (BREAK RECURSION)
-                return resolve(levelHolders.length);
+                return levelHolders.length;
             }
 
             this.log("Now handling Level " + this.current + " with " + cntNextLvl + " potential token holders.");
