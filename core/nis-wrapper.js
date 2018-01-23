@@ -46,6 +46,22 @@ class NISWrapper {
          * @var {Object}
          */
         this.argv = options;
+
+        /**
+         * Whether the current instance is connected or not.
+         * 
+         * @var {Boolean}
+         */
+        this.connected = false;
+
+        /**
+         * This variable contains Discovered Namespaces.
+         * This is to provide a caching mechanism for Mosaic
+         * and Namespaces.
+         * 
+         * @var {object}
+         */
+        this.__ns_Discovery = {};
     }
 
     /**
@@ -80,6 +96,7 @@ class NISWrapper {
         this.node = this.SDK.model.objects.create("endpoint")(this.conn.getHost(), this.conn.getPort());
         this.network = network;
         this.networkId = this.SDK.model.network.data[network].id;
+        this.connected = true;
 
         return this;
     }
@@ -196,10 +213,62 @@ class NISWrapper {
         if (body && body.length)
             wrapData.json = JSON.parse(body);
 
-        Request(wrapData, function(error, response, body) {
-            let res = response.toJSON();
-            return callback(res.body);
+        return new Promise(function(resolve, reject) {
+            Request(wrapData, function(error, response, body) {
+                let res = response.toJSON();
+                return resolve(res.body);
+            });
         });
+    }
+
+    /**
+     * This helper method will retrieve mosaic informations 
+     * about the given `slug`. A mosaic slug for XEM is "nem:xem"
+     * for example. For DIM COIN this would be "dim:coin", and so 
+     * on..
+     * 
+     * @param {String} slug 
+     * @return {Object}
+     */
+    async getMosaic(slug) {
+        let ns = slug.replace(/:(.*)+$/, '');
+        let mos = slug.replace(/^(.*)+:/, '');
+
+        let ns_norm = ns.replace(/\./, '-');
+        if (this.__ns_Discovery.hasOwnProperty(ns_norm))
+            return this.__ns_Discovery[ns_norm];
+
+        let url = "/namespace/mosaic/definition/page?namespace=" + ns;
+        let body = undefined;
+        let headers = {};
+
+        let response = await this.get(url, body, headers);
+        let parsed = JSON.parse(response);
+
+        for (let i = 0; i < parsed.data.length; i++) {
+            let row = parsed.data[i];
+
+            if (row.mosaic.id.mosaicId === mos) {
+                this.__ns_Discovery[ns_norm] = row;
+                return row;
+            }
+        }
+
+        // mosaic data NOT FOUND
+        let data = {
+            mosaic: {id: {namespaceId: ns, name: mos}},
+            properties: [{name: "divisibility", value: 6}]
+        };
+        return data;
+    }
+
+    /**
+     * Getter for the connected property.
+     * 
+     * @return {Boolean}
+     */
+    isConnected() {
+        return this.connected;
     }
 
 }
