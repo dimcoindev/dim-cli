@@ -35,7 +35,19 @@ class DIMTokenHolder extends DIMModel {
     constructor(data = {}) {
         super(data);
 
-        this.model = this.schema.TokenHolder;
+        /**
+         * The relation's table name
+         * 
+         * @var {String}
+         */
+        this.tableName = "TokenHolder";
+
+        /**
+         * The mongoose Model.
+         *
+         * @var {mongoose.model}
+         */
+        this.model = this.schema.getTable(this.tableName);
     }
 }
 

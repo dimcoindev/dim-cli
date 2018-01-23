@@ -40,13 +40,21 @@ class DIMDatabaseCache {
          * @var {Object}
          */
         this.adapter = mongoose;
+    }
 
+    connect() {
         // Connect to MongoDB
-        this.adapter.connect(this.host, function(err, res) {
-            if (err)
-                console.log("ERROR with DIM-cli MongoDB database (" + this.host + "): " + err);
-            else
-                console.log("DIM-cli Database connection is now up with " + this.host);
+        return new Promise(function(resolve, reject) {
+            this.adapter.connect(this.host, function(err, res) {
+                if (err) {
+                    console.log("ERROR with DIM-cli MongoDB database (" + this.host + "): " + err);
+                    return reject(err);
+                }
+                else {
+                    console.log("DIM-cli Database connection is now up with " + this.host);
+                    return resolve(res);
+                }
+            }.bind(this));
         }.bind(this));
     }
 

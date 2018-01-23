@@ -16,14 +16,25 @@
  */
 "use strict";
 
-import DIMTransaction from './model/dim-transaction';
-import DIMWallet from './model/dim-wallet';
-import DIMTokenHolder from './model/dim-tokenholder';
-import DIMUtils from './helpers';
+/**
+ * Helper to extract only the Addresses out of an
+ * account list.
+ * 
+ * @param {Array} that
+ * @param {String} field
+ */
+let flattenArray = function(that, field) {
+    let result = {};
+    if (that && that.length) {
+        for (let i = 0; i < that.length; i++) {
+            let obj = that[i];
+            result[obj[field]] = obj;
+        }
+    }
+
+    return result;
+}
 
 export default {
-    Transaction: DIMTransaction,
-    Wallet: DIMWallet,
-    TokenHolder: DIMTokenHolder,
-    Utils: DIMUtils
+    flattenArray
 };

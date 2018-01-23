@@ -32,7 +32,7 @@ class DIMModel {
          *
          * @var {mongoose.Schema}
          */
-        this.schema = DIMSchema.instance();
+        this.schema = DIMSchema.getInstance();
 
         /**
          * The mongoose Model for the current DIM model instance.
@@ -47,6 +47,13 @@ class DIMModel {
          * @var {Array}
          */
         this.data = data || undefined;
+
+        /**
+         * The relation's table name
+         * 
+         * @var {String}
+         */
+        this.tableName = undefined;
     }
 
     /**
@@ -58,6 +65,65 @@ class DIMModel {
      */
     createModel(data) {
         return this.model(data);
+    }
+
+    /**
+     * Helper to set attribute on models.
+     * 
+     * @param {String} field 
+     * @param {mixed} value 
+     * @return {DIMModel}
+     */
+    setAttribute(field, value) {
+        this.data[field] = value;
+        return this;
+    }
+
+    /**
+     * Helper to get attribute from models.
+     * 
+     * @param {String} field 
+     * @return {mixed}
+     */
+    getAttribute(field) {
+        return this.data[field];
+    }
+
+    /**
+     * Helper to get all attributes from models.
+     * 
+     * @return {mixed}
+     */
+    getAttributes() {
+        return this.data || [];
+    }
+
+    /**
+     * Helper method to save the current data in a collection.
+     * 
+     * @return {DIMModel}
+     */
+    async save() {
+        return await this.save_();
+    }
+
+    /**
+     * Promise base saving mechanism. Used in save() method.
+     * 
+     * @return {Promise}
+     */
+    save_() {
+        return new Promise(function(resolve, reject)
+        {
+            let defer = new this.model(this.data);
+            defer.save(function(err) {
+                if (err) {
+                    return reject(err);
+                }
+
+                return resolve(defer);
+            });
+        }.bind(this));
     }
 
     /**

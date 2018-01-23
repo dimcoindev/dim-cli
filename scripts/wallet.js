@@ -17,6 +17,7 @@
 "use strict";
 
 import BaseCommand from "../core/command";
+import DIM from "../sdk/helpers";
 import Request from "request";
 
 import * as JSONBeautifier from "prettyjson";
@@ -65,7 +66,7 @@ class Command extends BaseCommand {
             "description": "Get the latest transactions of a given wallet."
         }, {
             "signature": "-R, --raw",
-            "description": "Get RAW JSON data displayed instead of the default beautified Display."
+            "description": "Get RAW JSON data displayed instead of the default Wallet Display."
         }, {
             "signature": "-B, --beautify",
             "description": "Only applies with --raw. This will print the output beautified instead of raw JSON."
@@ -122,6 +123,9 @@ class Command extends BaseCommand {
         else if (env.latest)
             // --latest
             return this.latestTransactions(env, this.wallet.accounts["0"].address);
+        else if (env.watch)
+            // --watch
+            return this.watchAddress(env, this.wallet.accounts["0"].address);
 
         // the end-user has not specified `--overview`, `--balances` or 
         // `--latest` command line arguments.
@@ -155,12 +159,14 @@ class Command extends BaseCommand {
     addressMenu(env, address) {
         var ov = function() { this.accountOverview(env, address); }.bind(this);
         var ba = function() { this.accountBalances(env, address); }.bind(this);
-        var tx = function() { this.recentTransactions(env, address); }.bind(this);
+        var tx = function() { this.latestTransactions(env, address); }.bind(this);
+        var wa = function() { this.watchAddress(env, address); }.bind(this);
 
         this.displayMenu("Wallet Utilities", {
             "0": {title: "Account Overview", callback: ov},
             "1": {title: "Account Balances", callback: ba},
-            "2": {title: "Recent Transactions", callback: tx}
+            "2": {title: "Recent Transactions", callback: tx},
+            "3": {title: "Watch Address", callback: wa},
         }, function() { this.end(); }.bind(this), true);
     }
 
@@ -270,23 +276,9 @@ class Command extends BaseCommand {
             cntCosigs: acctMeta.cosignatories.length,
             minCosigs: acctData.multisigInfo.minCosignatories ? acctData.multisigInfo.minCosignatories : 0,
             maxCosigs: acctData.multisigInfo.cosignatoriesCount ? acctData.multisigInfo.cosignatoriesCount : 0,
-            cosignatories: {},
-            cosignatoryOf: {}
+            cosignatories: DIM.Utils.flattenArray(acctMeta.cosignatories, "address", "cosignatories"),
+            cosignatoryOf: DIM.Utils.flattenArray(acctMeta.cosignatoryOf, "address", "cosignatoryOf")
         };
-
-        if (acctMeta.cosignatories.length) {
-            for (let i in acctMeta.cosignatories) {
-                let cosig = acctMeta.cosignatories[i];
-                multisigData["cosignatories"][cosig.address] = cosig;
-            }
-        }
-
-        if (acctMeta.cosignatoryOf.length) {
-            for (let i in acctMeta.cosignatoryOf) {
-                let cosig = acctMeta.cosignatoryOf[i];
-                multisigData["cosignatoryOf"][cosig.address] = cosig;
-            }
-        }
 
         let hasEnoughXem = acctData.vestedBalance > 10000 * Math.pow(10, 6);
         let harvestData = {
@@ -538,6 +530,16 @@ class Command extends BaseCommand {
         else {
             this.displayTable("Wallet Latest Transactions", tblHead, trxes);
         }
+    }
+
+    /**
+     * This method will ACTIVELY WATCH a given address.
+     * 
+     * Running multiple of --watch commands at the same time
+     * can bring performance issues. Please use with care.
+     */
+    async watchAddress(argv, address) {
+
     }
 }
 

@@ -47,11 +47,11 @@ class DIMSchema {
         this.adapter = this.storage.getDb();
 
         /**
-         * Initialize the DIM ORM Tables.
+         * Object containing table by names
          * 
-         * @return {DIMSchema}
+         * @var {Object}
          */
-        this.initTables();
+        this.tables = {};
     }
 
     /**
@@ -59,11 +59,22 @@ class DIMSchema {
      * 
      * @return {DIMSchema}
      */
-    static get instance() {
+    static getInstance() {
         if (! this[instance_])
             this[instance_] = new DIMSchema(instance_);
 
         return this[instance_];
+    }
+
+    getTable(table) {
+        if (! this.tables[table])
+            return false;
+
+        return this.tables[table];
+    }
+
+    getTables() {
+        return this.tables;
     }
 
     /**
@@ -71,7 +82,15 @@ class DIMSchema {
      * 
      * @return {DIMSchema}
      */
-    initTables() {
+    async initTables() {
+
+        try {
+            let conn = await this.storage.connect();
+        }
+        catch (e) {
+            throw new Error("Impossible to open connection to MongoDB: " + e);
+        }
+
         /**
          * MongoDb collection `DIMTokenHolders`
          */
@@ -81,7 +100,7 @@ class DIMSchema {
             createdAt: { type: Number, min: 0 },
             updatedAt: { type: Number, min: 0 }
         });
-        this.TokenHolder = this.adapter.model("DIMTokenHolder", tokenHolderSchema);
+        this.tables["TokenHolder"] = this.adapter.model("DIMTokenHolder", tokenHolderSchema);
 
         /**
          * MongoDb collection `DIMTransactions`
@@ -92,7 +111,7 @@ class DIMSchema {
             dimCurrencies: { type: Array },
             createdAt: { type: Number, min: 0 }
         });
-        this.Transaction = this.adapter.model("DIMTransaction", transactionSchema);
+        this.tables["Transaction"] = this.adapter.model("DIMTransaction", transactionSchema);
 
         /**
          * MongoDb collection `DIMWallet`
@@ -104,7 +123,7 @@ class DIMSchema {
             createdAt: { type: Number, min: 0 },
             updatedAt: { type: Number, min: 0 }
         });
-        this.Wallet = this.adapter.model("DIMWallet", walletSchema);
+        this.tables["Wallet"] = this.adapter.model("DIMWallet", walletSchema);
 
         return this;
     }

@@ -167,9 +167,13 @@ class NEMNetworkConnection {
      */
     getHost(scheme) { 
         if (scheme === false) 
-            return this.host.replace(/https?:\/\//, ''); 
+            return this.host.replace(/https?:\/\//, '');
+        else if (scheme && ! /^https?/.test(scheme)) {
+            // different scheme requested (ws/wss/ftp)
+            return this.host.replace(/https?:\/\//, (scheme.replace(/:\/\/$/, '') + '://'));
+        }
 
-        return this.host 
+        return this.host;
     }
 
     /**
@@ -178,7 +182,7 @@ class NEMNetworkConnection {
      * @return  integer
      */
     getPort() { 
-        return this.port 
+        return this.port;
     }
 
     /**

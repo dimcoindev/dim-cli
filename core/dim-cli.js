@@ -19,6 +19,7 @@
 "use strict";
 
 import ConsoleInput from "./console-input";
+import DIMSchema from "../sdk/model/dim-schema";
 
 var cli = require("commander"),
     fs  = require("fs"),
@@ -143,4 +144,15 @@ Object.getOwnPropertyNames(_commands)
     });
 });
 
-cli.parse(process.argv);
+// always connect to DB first !
+try {
+    (async function() {
+        let schema = DIMSchema.getInstance();
+        let conn = await schema.initTables();
+
+        cli.parse(process.argv);
+    })();
+}
+catch(e) {
+    console.error(e);
+}

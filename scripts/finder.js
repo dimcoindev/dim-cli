@@ -174,12 +174,11 @@ class Command extends BaseCommand {
         // `filePath` is now a fully qualified export file name (self-contained path)
         // Crawler command will now start processing.
 
-        let options = this.argv;
-        if (!options.network)
-            options.network = "mainnet"; // DIM Network ID 104 = NEM Mainnet
+        if (!this.argv.network)
+            this.argv.network = "mainnet"; // DIM Network ID 104 = NEM Mainnet
 
-        this.api = new NIS(this.npmPackage);
-        this.api.init(options);
+        this.api.argv = this.argv;
+        this.api.connect();
 
         // get necessary DIM parameters
         let tokenCreator = this.parameters.getToken().creator;
@@ -543,20 +542,19 @@ class Command extends BaseCommand {
 
         if (holder) {
             // update..
-            holder.updatedAt = (new Date).valueOf();
+            holder.setAttribute("updatedAt", (new Date).valueOf());
         }
         else {
             // JiT creation
             holder = new DIM.TokenHolder({
                 address: address,
-                tokenAmount: tokenAmount,
                 createdAt: (new Date).valueOf(),
                 updatedAt: 0
             });
         }
 
-        holder.tokenAmount = tokenAmount;
-        holder.save();
+        holder.setAttribute("tokenAmount", tokenAmount);
+        let holder = await holder.save();
         return true;
     }
 }
