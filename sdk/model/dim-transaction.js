@@ -27,7 +27,19 @@ class DIMTransaction extends DIMModel {
     constructor(data) {
         super(data);
 
-        this.model = this.schema.Transaction;
+        /**
+         * The relation's table name
+         * 
+         * @var {String}
+         */
+        this.tableName = "Transaction";
+
+        /**
+         * The mongoose Model.
+         *
+         * @var {mongoose.model}
+         */
+        this.model = this.schema.getTable(this.tableName);
     }
 
     /**

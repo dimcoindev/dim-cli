@@ -82,7 +82,7 @@ class FormatterCSV extends Formatter {
      */
     __toFile(filePath) {
 
-        let head = "";
+        let head = [];
         let csv = "";
         this.rows.forEach(function(rowArray) {
             // if rowArray is an object, we must get only
@@ -97,11 +97,11 @@ class FormatterCSV extends Formatter {
                     data.push(rowArray[head[k]]);
             }
 
-            let row = data.join(",");
-            csv += row + "\r\n"; // add carriage return
+            let row = data.join('","');
+            csv += row + "\"\r\n"; // add carriage return
         });
 
-        let header = head.length ? head + "\r\n" : "";
+        let header = head.length ? head.join('","') + "\"\r\n" : "";
         fs.writeFileSync(filePath, header + csv);
         return this;
     }

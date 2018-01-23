@@ -544,11 +544,13 @@ class Command extends BaseCommand {
 
         this.initAPI();
 
+        console.log("[INFO] Now connecting to Node: " + JSON.stringify(this.api.conn.wsNode) + " for Address: " + address);
+
         try {
-            let connector = this.api.SDK.com.websockets.connector.create(this.conn.wsNode, address);
+            let connector = this.api.SDK.com.websockets.connector.create(this.api.conn.wsNode, address);
             let result = await connector.connect();
 
-            chalk.reset("[INFO] Now watching Address: " + address + " on Node: " + this.conn.wsNode.host);
+            console.log("[INFO] Now watching Address: " + address + " on Node: " + this.api.conn.wsNode.host + ":" + this.api.conn.wsNode.port);
 
             // Subscribe to websockets for this address:
             // - Errors
@@ -557,26 +559,27 @@ class Command extends BaseCommand {
             // - Confirmed Transactions
 
             this.api.SDK.com.websockets.subscribe.errors(connector, function(res) {
-                chalk.red("Account Error received: ", JSON.stringify(res));
+                console.error("Account Error received: ", JSON.stringify(res));
             }.bind(this));
 
             this.api.SDK.com.websockets.subscribe.account.data(connector, function(res) {
-                chalk.blue("\r\n[ACCOUNT] [" + (new Date()) + "] " + JSON.stringify(res));
+                console.log("\r\n[ACCOUNT] [" + (new Date()) + "] " + JSON.stringify(res));
             }.bind(this));
 
             this.api.SDK.com.websockets.subscribe.account.transactions.unconfirmed(connector, function(res) {
-                chalk.blue("\r\n[UNCONFIRMED] [" + (new Date()) + "] " + JSON.stringify(res));
+                console.log("\r\n[UNCONFIRMED] [" + (new Date()) + "] " + JSON.stringify(res));
             }.bind(this));
 
             this.api.SDK.com.websockets.subscribe.account.transactions.confirmed(connector, function(res) {
-                chalk.green("\r\n[CONFIRMED] [" + (new Date()) + "] " + JSON.stringify(res));
+                console.log("\r\n[CONFIRMED] [" + (new Date()) + "] " + JSON.stringify(res));
             }.bind(this));
 
             return connector;
         }
         catch(e) {
             // re-issue connection
-            return this.watchAddress(address);
+            console.error("\r\n[ERROR] [" + (new Date()) + "] " + JSON.stringify(e));
+            return false;
         }
     }
 }

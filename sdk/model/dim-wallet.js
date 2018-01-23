@@ -26,7 +26,19 @@ class DIMWallet extends DIMModel {
     constructor(data) {
         super(data);
 
-        this.model = this.schema.Wallet;
+        /**
+         * The relation's table name
+         * 
+         * @var {String}
+         */
+        this.tableName = "Wallet";
+
+        /**
+         * The mongoose Model.
+         *
+         * @var {mongoose.model}
+         */
+        this.model = this.schema.getTable(this.tableName);
     }
 }
 

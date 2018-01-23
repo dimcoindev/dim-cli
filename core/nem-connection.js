@@ -49,15 +49,15 @@ class NEMNetworkConnection {
         this.networkId = 104;
         this.host = "hugealice.nem.ninja";
         this.port = 7890;
-        this.wsPort = 7891;
         this.wsScheme = (wsScheme || "ws");
+        this.wsPort = this.wsScheme.match(/^wss/) ? 7779 : 7778;
 
         this.setNetwork(network);
         this.setHost(host);
         this.setPort(port);
 
         this.node = NEM.model.objects.create("endpoint")(this.getHost(), this.port);
-        this.wsNode = NEM.model.objects.create("endpoint")(this.getHost(this.wsScheme), this.wsPort);
+        this.wsNode = NEM.model.objects.create("endpoint")(this.getHost(), this.wsPort);
 
         /**
          * The Websocket stream.
