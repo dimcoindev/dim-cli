@@ -97,6 +97,8 @@ class DIMSchema {
         let tokenHolderSchema = new this.adapter.Schema({
             address: String,
             tokenAmount: { type: Number, min: 0 },
+            holderPercentage: { type: Number, min: 0 },
+            holderImportance: { type: Number, min: 0 },
             createdAt: { type: Number, min: 0 },
             updatedAt: { type: Number, min: 0 }
         });

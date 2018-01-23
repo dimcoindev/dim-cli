@@ -537,9 +537,47 @@ class Command extends BaseCommand {
      * 
      * Running multiple of --watch commands at the same time
      * can bring performance issues. Please use with care.
+     * 
+     * This will open Websocket connections 
      */
     async watchAddress(argv, address) {
 
+        this.initAPI();
+
+        try {
+            let connector = this.api.SDK.com.websockets.connector.create(this.conn.wsNode, address);
+            let result = await connector.connect();
+
+            chalk.reset("[INFO] Now watching Address: " + address + " on Node: " + this.conn.wsNode.host);
+
+            // Subscribe to websockets for this address:
+            // - Errors
+            // - Account Data
+            // - Unconfirmed Transactions
+            // - Confirmed Transactions
+
+            this.api.SDK.com.websockets.subscribe.errors(connector, function(res) {
+                chalk.red("Account Error received: ", JSON.stringify(res));
+            }.bind(this));
+
+            this.api.SDK.com.websockets.subscribe.account.data(connector, function(res) {
+                chalk.blue("\r\n[ACCOUNT] [" + (new Date()) + "] " + JSON.stringify(res));
+            }.bind(this));
+
+            this.api.SDK.com.websockets.subscribe.account.transactions.unconfirmed(connector, function(res) {
+                chalk.blue("\r\n[UNCONFIRMED] [" + (new Date()) + "] " + JSON.stringify(res));
+            }.bind(this));
+
+            this.api.SDK.com.websockets.subscribe.account.transactions.confirmed(connector, function(res) {
+                chalk.green("\r\n[CONFIRMED] [" + (new Date()) + "] " + JSON.stringify(res));
+            }.bind(this));
+
+            return connector;
+        }
+        catch(e) {
+            // re-issue connection
+            return this.watchAddress(address);
+        }
     }
 }
 

@@ -18,6 +18,7 @@
 
 import BaseCommand from "../core/command";
 import FormatterXLSX from "../core/formatter-xlsx";
+import FormatterCSV from "../core/formatter-csv";
 import FormatterJSON from "../core/formatter-json";
 import DIMParameters from "../core/dim-parameters";
 import DIM from "../sdk/index.js";
@@ -208,7 +209,7 @@ class Command extends BaseCommand {
 
         try {
 
-            // fetch first batch of token holders (starting from mosaic creator)
+            // STEP 1: fetch first batch of token holders (starting from mosaic creator)
             let totalTokenHolders = await this.startCrawler(startAddress);
 
             // DONE CRAWLING blockchain transactions
@@ -218,8 +219,11 @@ class Command extends BaseCommand {
             // had dim:tokens* but maybe don't have them anymore.
             let unfilteredTokenHoldersCount = Object.keys(this.storage.accounts).length;
 
-            // FILTER all holders (token holders must have more than 50 dim:token)
+            // STEP 2: FILTER all holders (token holders must have more than 50 dim:token)
             let elligibleTokenHoldersCount = await this.filterByTokenHolderElligibility(Object.keys(this.storage.accounts), this.storage.tokenHolders);
+
+            // STEP 3: NOW EVALUATE (STATISTICS - PERCENTAGES)
+            let result = await this.generateStatistics();
 
             // DONE FILTERING HOLDERS
             this.formatterAccts.save();
@@ -261,6 +265,7 @@ class Command extends BaseCommand {
     }
 
     /**
+     * STEP 1: Crawl dim:token Transactions.
      * This method will start the dim:token crawler.
      * 
      * @return {Integer}
@@ -472,6 +477,7 @@ class Command extends BaseCommand {
     }
 
     /**
+     * STEP 2: Filter out inelligible dim:token holders (less than 50 dim:token).
      * This method processes all *retrieved* `accounts` and checks
      * their *current mosaic balance for dim:token*.
      * 
@@ -513,10 +519,10 @@ class Command extends BaseCommand {
 
             this.formatterAccts.writeRows([{
                 "holderAddress": address,
-                "stakeQuantity": balances[b].quantity
+                "stakeQuantity": balances[b].quantity,
+                "holderPercentage": 0,
+                "holderImportance": 0
             }]);
-
-            let cached = await this.saveDimTokenHolderCache(address, balances[b].quantity);
         }
 
         // In case we still have accounts to iterate over, RECURSION.
@@ -531,14 +537,13 @@ class Command extends BaseCommand {
     /**
      * Save a database cache entry for this DIM Token Holder.
      * 
-     * @param {String} address  NEM Mainnet address
-     * @param {Integer} tokenAmount   Micro dim:token amount (divisibility is 6)
+     * @param {String} object  The holder account row (from JSON)
      * @return {Boolean}
      */
-    async saveDimTokenHolderCache(address, tokenAmount) {
+    async saveDimTokenHolderCache(object) {
 
         let holder = new DIM.TokenHolder({});
-        holder = await holder.findByField("address", address);
+        holder = await holder.findByField("address", object.holderAddress);
 
         if (holder) {
             // update..
@@ -547,15 +552,43 @@ class Command extends BaseCommand {
         else {
             // JiT creation
             holder = new DIM.TokenHolder({
-                address: address,
+                address: object.holderAddress,
                 createdAt: (new Date).valueOf(),
                 updatedAt: 0
             });
         }
 
-        holder.setAttribute("tokenAmount", tokenAmount);
-        let holder = await holder.save();
+        holder.setAttribute("tokenAmount", object.stakeQuantity);
+        holder.setAttribute("holderPercentage", object.holderPercentage);
+        holder.setAttribute("holderImportance", object.holderImportance);
+        holder = await holder.save();
         return true;
+    }
+
+    /**
+     * FINAL STEP: generate the holder importances.
+     * 
+     * @return {Object}
+     */
+    async generateStatistics() {
+        let rows = this.formatterAccts.getRows();
+        let totalTokens = 0;
+        for (let i = 0; i < rows.length; i++) {
+            totalTokens += rows[i].stakeQuantity;
+        }
+
+        console.log("Distribution Branches: " + rows.length);
+        console.log("Total dim:token: " + (totalTokens / Math.pow(10, 6)).toFixed(6));
+
+        // now update rows with percentage.
+        for (let j = 0; j < rows.length; j++) {
+            rows[j]['holderPercentage'] = (rows[j].stakeQuantity / totalTokens) * 100;
+            rows[j]['holderImportance'] = (rows[j].stakeQuantity / totalTokens);
+
+            let cached = await this.saveDimTokenHolderCache(rows[j]);
+        }
+
+        return this;
     }
 }
 

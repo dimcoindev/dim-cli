@@ -38,7 +38,7 @@ class NEMNetworkConnection {
      * @param   {string}            host
      * @param   {integer}           port
      */
-    constructor(network, host, port) {
+    constructor(network, host, port, wsScheme) {
         this.defaultNodes = {
             "mainnet": "hugealice.nem.ninja",
             "testnet": "bigalice2.nem.ninja"
@@ -49,10 +49,22 @@ class NEMNetworkConnection {
         this.networkId = 104;
         this.host = "hugealice.nem.ninja";
         this.port = 7890;
+        this.wsPort = 7891;
+        this.wsScheme = (wsScheme || "ws");
 
         this.setNetwork(network);
         this.setHost(host);
         this.setPort(port);
+
+        this.node = NEM.model.objects.create("endpoint")(this.getHost(), this.port);
+        this.wsNode = NEM.model.objects.create("endpoint")(this.getHost(this.wsScheme), this.wsPort);
+
+        /**
+         * The Websocket stream.
+         * 
+         * @var {Array}
+         */
+        this.stream = [];
     }
 
     /**
