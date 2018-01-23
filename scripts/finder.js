@@ -226,6 +226,7 @@ class Command extends BaseCommand {
             let result = await this.generateStatistics();
 
             // DONE FILTERING HOLDERS
+            this.formatterAccts.sortByField("holderImportance", true); // reverse=true
             this.formatterAccts.save();
 
             console.log("");

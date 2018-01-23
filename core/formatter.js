@@ -142,6 +142,26 @@ class Formatter {
         throw new Error("Please implement `__toFile(filePath): Formatter` in your Formatter extending class.");
     }
 
+    /**
+     * Helper to sort rows by a given field name.
+     * @param {String} field 
+     */
+    sortByField(field, reverse = false) {
+        this.rows.sort(function(a, b) {
+            if (a[field] > b[field])
+                return 1;
+            else if (a[field] < b[field])
+                return -1;
+
+            return 0;
+        }.bind(this));
+
+        if (reverse === true)
+            this.rows.reverse();
+
+        return this;
+    }
+
 }
 
 exports.Formatter = Formatter;
