@@ -441,12 +441,103 @@ class Command extends BaseCommand {
      * This method will display a list of latest transactions
      * for the currently loaded Wallet.
      */
-    latestTransactions(argv, address) {
-        console.log("LATEST");
-    }
+    async latestTransactions(argv, address) {
 
-    accountOverview_printGeneralData(parsed) {
+        this.initAPI();
 
+        let url = "/account/transfers/all?address=" + address;
+        let body = undefined;
+        let headers = {};
+        let nisResp = await this.api.get(url, body, headers);
+        let parsed = JSON.parse(nisResp);
+
+        if (parsed.error) {
+            console.error("NIS API Request Error: " + parsed.error + " - " + parsed.message + " - Status: " + parsed.status);
+            return false;
+        }
+
+        let tblHead = {
+            "idx": "#",
+            "id": "Tx Id",
+            "height": "Block #",
+            "type": "Type",
+            "address": "Address",
+            "fee": "Fee",
+            "xem": "XEM",
+        };
+
+        let trxes = [];
+        for (let i = 0; i < parsed.data.length; i++) {
+            let trx = parsed.data[i].transaction;
+            let meta = parsed.data[i].meta;
+            let data = trx.type === 4100 ? trx.otherTrans : trx;
+            let recipient = data.recipient;
+            let height = meta.height;
+            let id     = meta.id;
+            let isReceive = recipient === address;
+
+            let sender = this.api.SDK.model.address.toAddress(data.signer, this.api.networkId);
+            if (trx.type === 4100) // use multisig account
+                sender = this.api.SDK.model.address.toAddress(trx.signer, this.api.networkId);
+
+            recipient = recipient.substr(0, 6) + "-...-" + recipient.substr(-4);
+            sender    = sender.substr(0, 6) + "-...-" + sender.substr(-4);
+
+            let type = chalk.red("(OUT)");
+            let addresses = "";
+            if (data.type === 257 && isReceive) {
+                type = chalk.green("(IN)");
+                addresses = "From: " + sender;
+            }
+            else if (data.type === 257) {
+                type = chalk.red("(OUT)");
+                addresses = "To: " + recipient;
+            }
+
+            let fees = 0;
+
+            if (trx.type === 4100) {
+                // Multisig handle multi fee
+                fees = parseInt(trx.fee) + parseInt(data.fee);
+            }
+            else {
+                fees = parseInt(data.fee);
+            }
+
+            let current = {
+                idx: i+1,
+                id: id,
+                height: height,
+                type: type,
+                address: addresses,
+                fee: fees / Math.pow(10, 6),
+            }
+
+            if (data.type === 257 && data.mosaics && data.mosaics.length) {
+                for (let m = 0; m < data.mosaics.length; m++) {
+                    let amt = data.mosaics[m].quantity;
+                    let coin = this.api.SDK.utils.format.mosaicIdToName(data.mosaics[m].mosaicId);
+
+                    if (!tblHead.hasOwnProperty(coin))
+                        tblHead[coin] = coin;
+
+                    current[coin] = parseInt(amt);
+                }
+            }
+
+            current.xem = parseInt(data.amount) / Math.pow(10, 6);
+            trxes.push(current);
+        }
+
+        if (argv.raw) {
+            let rawJSON = JSON.stringify({data: trxes});
+            let j = argv.beautify ? this.beautifyJSON(rawJSON) : rawJSON;
+            console.log(j);
+            return false;
+        }
+        else {
+            this.displayTable("Wallet Latest Transactions", tblHead, trxes);
+        }
     }
 }
 
