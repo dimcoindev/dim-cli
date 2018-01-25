@@ -532,6 +532,16 @@ class Command extends BaseCommand {
         }
     }
 
+    connectWebsocket_(connector) {
+        return new Promise(function(resolve, reject) {
+            connector.connect().then(() => {
+                return resolve(connector);
+            }).catch((err) => {
+                return reject(err);  
+            });
+        });
+    }
+
     /**
      * This method will ACTIVELY WATCH a given address.
      * 
@@ -548,31 +558,36 @@ class Command extends BaseCommand {
 
         try {
             let connector = this.api.SDK.com.websockets.connector.create(this.api.conn.wsNode, address);
-            let result = await connector.connect();
+            connector = await this.connectWebsocket_(connector);
 
             console.log("[INFO] Now watching Address: " + address + " on Node: " + this.api.conn.wsNode.host + ":" + this.api.conn.wsNode.port);
 
             // Subscribe to websockets for this address:
             // - Errors
+            // - Chain Blocks
             // - Account Data
             // - Unconfirmed Transactions
             // - Confirmed Transactions
 
             this.api.SDK.com.websockets.subscribe.errors(connector, function(res) {
                 console.error("Account Error received: ", JSON.stringify(res));
-            }.bind(this));
+            });
+
+            this.api.SDK.com.websockets.subscribe.chain.blocks(connector, function(res){
+                console.log("\r\n[BLOCK] [" + (new Date()) + "] " + JSON.stringify(res));
+            });
 
             this.api.SDK.com.websockets.subscribe.account.data(connector, function(res) {
                 console.log("\r\n[ACCOUNT] [" + (new Date()) + "] " + JSON.stringify(res));
-            }.bind(this));
+            });
 
             this.api.SDK.com.websockets.subscribe.account.transactions.unconfirmed(connector, function(res) {
                 console.log("\r\n[UNCONFIRMED] [" + (new Date()) + "] " + JSON.stringify(res));
-            }.bind(this));
+            });
 
             this.api.SDK.com.websockets.subscribe.account.transactions.confirmed(connector, function(res) {
                 console.log("\r\n[CONFIRMED] [" + (new Date()) + "] " + JSON.stringify(res));
-            }.bind(this));
+            });
 
             return connector;
         }
