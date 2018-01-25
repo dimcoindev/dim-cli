@@ -17,6 +17,7 @@
 "use strict";
 
 import DIMParameters from "./dim-parameters";
+import DIMSearch from "./dim-search";
 import NEM from "nem-sdk";
 
 /**
@@ -32,9 +33,9 @@ import NEM from "nem-sdk";
  * @example Instantiate the DIMExplorer class
  * 
  * ```javascript
- *     import NIS from "./scripts/api"; 
+ *     import NIS from "./core/nis-wrapper"; 
  *     let api = new NIS();
- *     api.init({network: "mainnet"});
+ *     api.connect();
  * 
  *     let explorer = new DIMExplorer(api);
  * 
@@ -60,6 +61,13 @@ class DIMExplorer {
          * @var {DIMParameters}
          */
         this.parameters = new DIMParameters();
+
+        /**
+         * The DIM Ecosystem Finder.
+         *
+         * @var {DIMSearch}
+         */
+        this.finder = new DIMSearch(NIS);
 
         /**
          * The NIS API Wrapper instance.
@@ -166,6 +174,19 @@ class DIMExplorer {
             return 0;
 
         return parameters.totalSupply;
+    }
+
+    /**
+     * This helper method lets you lookup the NEM Blockchain for either of those:
+     *
+     * - A Wallet Address
+     * - A Wallet Public Key
+     * - A Transaction Hash
+     *
+     * @param {*} term 
+     */
+    async searchByTerm(term) {
+        return await this.finder.searchByTerm(term);
     }
 
 }

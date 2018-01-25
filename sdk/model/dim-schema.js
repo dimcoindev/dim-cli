@@ -110,7 +110,8 @@ class DIMSchema {
         let transactionSchema = new this.adapter.Schema({
             nemId: { type: Number, min: 0 },
             nemHash: String,
-            dimCurrencies: { type: Array },
+            nemObject: { type: Object },
+            dimCurrencies: { type: Object },
             createdAt: { type: Number, min: 0 }
         });
         this.tables["Transaction"] = this.adapter.model("DIMTransaction", transactionSchema);
@@ -120,7 +121,8 @@ class DIMSchema {
          */
         let walletSchema = new this.adapter.Schema({
             address: String,
-            dimCurrencies: { type: Array },
+            dimCurrencies: { type: Object },
+            otherCurrencies: { type: Object },
             dimHolderAt: { type: Number, min: 0 },
             createdAt: { type: Number, min: 0 },
             updatedAt: { type: Number, min: 0 }

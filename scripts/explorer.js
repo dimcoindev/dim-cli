@@ -59,6 +59,9 @@ class Command extends BaseCommand {
         }, {
             "signature": "--totalSupply <currency>",
             "description": "Get the total circulating supply of a said currency ('dim:coin', 'dim:token', etc.)."
+        }, {
+            "signature": "--search <term>",
+            "description": "Search for Wallets (by address or public key) or for Transactions (by hash or Id)."
         }];
 
         this.examples = [
@@ -122,6 +125,18 @@ class Command extends BaseCommand {
 
         this.explorer = new DIMExplorer(this.api);
 
+        if (env.search) {
+            // Print the EXPLORER SEARCH RESULTS
+            // -----------------------------------------------------
+            // This command will search for Wallets or Transactions.
+
+            let searchTerm = env.search;
+            let result = await this.explorer.searchByTerm(searchTerm);
+
+            console.log(result);
+            return this.end();
+        }
+
         if (env.networkFee) {
             // Print the TOTAL AVAILABLE NETWORK FEE
             // -------------------------------------
@@ -156,7 +171,7 @@ class Command extends BaseCommand {
             }
 
             let totalSupply = await this.explorer.getTotalCirculatingSupply(currency);
-            this.outputResponse("Total supply of '" + currency + "' is ", totalSupply, "dim:coin");
+            this.outputResponse("Total supply of '" + currency + "' is ", totalSupply, currency);
         }
 
         return this.end();
@@ -205,6 +220,17 @@ class Command extends BaseCommand {
 
         console.log(resultTitle, formatted + " " + currencySlug);
         return this;
+    }
+
+    /**
+     * Helper to correctly output a list of search results with a menu
+     * for selection of the most interesting result (if more than one).
+     * 
+     * @param {String} resultTitle 
+     * @param {Array} results 
+     */
+    outputSearchResults(resultTitle, results) {
+
     }
 
 }
