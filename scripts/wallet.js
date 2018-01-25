@@ -532,16 +532,6 @@ class Command extends BaseCommand {
         }
     }
 
-    connectWebsocket_(connector) {
-        return new Promise(function(resolve, reject) {
-            connector.connect().then(() => {
-                return resolve(connector);
-            }).catch((err) => {
-                return reject(err);  
-            });
-        });
-    }
-
     /**
      * This method will ACTIVELY WATCH a given address.
      * 
@@ -589,6 +579,10 @@ class Command extends BaseCommand {
                 console.log("\r\n[CONFIRMED] [" + (new Date()) + "] " + JSON.stringify(res));
             });
 
+            // data requests
+            this.api.SDK.com.websockets.requests.account.data(connector);
+            this.api.SDK.com.websockets.requests.account.transactions.recent(connector);
+
             return connector;
         }
         catch(e) {
@@ -596,6 +590,23 @@ class Command extends BaseCommand {
             console.error("\r\n[ERROR] [" + (new Date()) + "] " + JSON.stringify(e));
             return false;
         }
+    }
+
+    /**
+     * This method promisifies the Websocket connection 
+     * process such that we can use `await` in watchAddress.
+     * 
+     * @param {Object} connector 
+     * @return {Promise}
+     */
+    connectWebsocket_(connector) {
+        return new Promise(function(resolve, reject) {
+            connector.connect().then(() => {
+                return resolve(connector);
+            }).catch((err) => {
+                return reject(err);  
+            });
+        });
     }
 }
 
