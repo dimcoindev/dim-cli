@@ -104,26 +104,15 @@ class DIMModel {
      * @return {DIMModel}
      */
     async save() {
-        return await this.save_();
-    }
+        delete this.data["updatedAt"];
 
-    /**
-     * Promise base saving mechanism. Used in save() method.
-     * 
-     * @return {Promise}
-     */
-    save_() {
-        return new Promise(function(resolve, reject)
-        {
-            let defer = new this.model(this.data);
-            defer.save(function(err) {
-                if (err) {
-                    return reject(err);
-                }
+        let exists = await this.model.findOne(this.data);
+        if (! exists)
+            exists = new this.model(this.data);
+        else
+            exists.updatedAt = (new Date).valueOf();
 
-                return resolve(defer);
-            });
-        }.bind(this));
+        return await exists.save();
     }
 
     /**
@@ -138,7 +127,13 @@ class DIMModel {
         let query = {};
         query[field] = value;
 
-        return await this.findOne(query);
+        try {
+            return await this.findOne(query);
+        }
+        catch (e) {
+            console.error("Error: ", e);
+            return null;
+        }
     }
 
     /**
@@ -152,13 +147,12 @@ class DIMModel {
         return new Promise(function(resolve, reject) {
             this.model.findOne(query, function(err, result) {
 
-                Object.assign(this, result);
-
                 if (!err && result) {
+                    Object.assign(this, result);
                     return resolve(this);
                 }
 
-                return resolve(null);
+                return reject("Item could not be found.");
             }.bind(this));
         }.bind(this));
     }

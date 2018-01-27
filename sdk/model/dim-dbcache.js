@@ -51,7 +51,7 @@ class DIMDatabaseCache {
                     return reject(err);
                 }
                 else {
-                    console.log("DIM-cli Database connection is now up with " + this.host);
+                    //console.log("DIM-cli Database connection is now up with " + this.host);
                     return resolve(res);
                 }
             }.bind(this));

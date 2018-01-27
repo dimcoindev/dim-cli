@@ -58,21 +58,27 @@ class DIMSearch {
 
         // Search Term - Type Discovery
 
-        if (/[a-f0-9]{64}/.test(term.toString())) {
-            // Hexadecimal Transaction Hash provided
-            return await this.searchTransaction(term.toString());
+        let results = null;
+        if (/^[a-f0-9]{64}$/.test(term.toString())) {
+            // Hexadecimal Transaction Hash provided (or Wallet Public Key)
+            results = await this.searchTransaction(term.toString());
+
+            if (results !== null) {
+                // found a transaction with given hash
+                return results;
+            }
+            else if (this.api.SDK.utils.helpers.isPublicKeyValid(term.toString())) {
+                // Hexadecimal Wallet Public Key provided
+                let address = this.api.SDK.model.address.toAddress(term.toString(), this.api.networkId);
+                return await this.searchWallet(address);
+            }
         }
         else if (this.api.SDK.model.address.isValid(term.toString())) {
             // BASE32 Wallet Address provided
             return await this.searchWallet(term.toString());
         }
-        else if (this.api.SDK.utils.helpers.isPublicKeyValid(term.toString())) {
-            // Hexadecimal Wallet Public Key provided
-            let address = this.api.SDK.model.address.toAddress(term.toString(), 104);
-            return await this.searchWallet(address);
-        }
 
-        throw new Error("Search term '" + term.toString() + "' is not a valid Wallet or Transaction identifier.");
+        throw new Error("Search term '" + term.toString() + "' is not a valid Wallet (Address/Public Key) or Transaction (Hash) identifier.");
     }
 
     /**
@@ -92,9 +98,6 @@ class DIMSearch {
 
         let tx = new DIM.Transaction({});
         tx = await tx.findByField("nemHash", hash.toString());
-
-        // transaction found in cache
-        if (tx) return tx;
 
         // query for transaction, then cache.
         let nemTx = await this.api.SDK.com.requests
@@ -117,7 +120,22 @@ class DIMSearch {
 
         // cache in database
         tx = await tx.save();
-        return tx;
+        return this.formatTransactionForOutput(tx);
+    }
+
+    /**
+     * Helper to transform a transaction database object such that only
+     * network data is printed out and no database specific fields.
+     * 
+     * @param {DIM.Transaction} tx 
+     */
+    formatTransactionForOutput(tx) {
+        return {
+            "nemId": tx.nemId,
+            "nemHash": tx.nemHash,
+            "nemTransaction": tx.nemObject,
+            "dimCurrencies": tx.dimCurrencies
+        };
     }
 
     /**
@@ -164,9 +182,6 @@ class DIMSearch {
             throw new Error("Missing mandatory 'address' parameter in call to DIMExplorer.searchWallet().");
         }
 
-        let wallet = new DIM.Wallet({});
-        wallet = await wallet.findByField("address", address.toString());
-
         // query for wallet current data!, then cache.
         let nemWallet = await this.api.SDK.com.requests
                                   .account.mosaics.owned(this.api.node, address.toString());
@@ -176,7 +191,11 @@ class DIMSearch {
             return null;
         }
 
-        if (! wallet) {
+        // check if we have a database object we might want to update.
+        let wallet = new DIM.Wallet({});
+        wallet = await wallet.findByField("address", address.toString());
+
+        if (wallet == null) {
             wallet = new DIM.Wallet({
                 address: address,
                 createdAt: (new Date).valueOf(),
@@ -202,12 +221,17 @@ class DIMSearch {
             }
         }
 
+        wallet.setAttribute("address", address);
         wallet.setAttribute("dimCurrencies", currencies);
         wallet.setAttribute("otherCurrencies", mosaics);
 
         // cache in database
         wallet = await wallet.save();
-        return wallet;
+        return {
+            "address": wallet.address,
+            "dimCurrencies": wallet.dimCurrencies,
+            "otherCurrencies": wallet.otherCurrencies
+        };
     }
 
 }

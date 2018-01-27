@@ -68,6 +68,8 @@ class Command extends BaseCommand {
             "dim-cli explorer --networkFee",
             "dim-cli explorer --payoutFee",
             "dim-cli explorer --totalSupply --raw",
+            "dim-cli explorer --search TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ",
+            "dim-cli explorer --search 7d0cb42402413ede9e710d87c5a28bd728bbdcfb322ba8eaa9ac16ead3daad06",
         ];
 
         /**
@@ -133,7 +135,7 @@ class Command extends BaseCommand {
             let searchTerm = env.search;
             let result = await this.explorer.searchByTerm(searchTerm);
 
-            console.log(result);
+            this.outputSearchResults("DIM Ecosystem Search Results", result, searchTerm);
             return this.end();
         }
 
@@ -229,8 +231,41 @@ class Command extends BaseCommand {
      * @param {String} resultTitle 
      * @param {Array} results 
      */
-    outputSearchResults(resultTitle, results) {
+    outputSearchResults(resultTitle, results, term) {
 
+        if (this.isRawMode) {
+            // --raw flag enabled
+            let obj = results;
+            let rawJSON = JSON.stringify(obj);
+            console.log(rawJSON);
+            return this;
+        }
+
+        console.log(resultTitle);
+        console.log(('-').repeat(resultTitle.length));
+        console.log("");
+
+        if (! results) {
+            console.log("We couldn't find any Wallet or Transaction matching your search term '" + term + "'");
+            console.log("");
+            console.log("  Following are usage examples for the DIMExplorer command line interface, you can");
+            console.log("  search for any Wallet Address (Testnet/Mainnet) or any Transaction Hash.");
+            console.log("");
+            console.log("    dim-cli explorer --search TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ");
+            console.log("    dim-cli explorer --search 7d0cb42402413ede9e710d87c5a28bd728bbdcfb322ba8eaa9ac16ead3daad06");
+            console.log("");
+        }
+        else {
+            // remove mongodb specific data
+            delete results["_id"], results["createdAt"], results["updatedAt"], results["__v"];
+
+            console.log("Following beautified JSON corresponds to an EXACT MATCH of your search term '" + term + "'");
+            console.log("");
+            console.log(this.beautifyJSON(JSON.stringify(results)));
+            console.log("");
+        }
+
+        return this;
     }
 
 }
