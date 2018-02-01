@@ -1,12 +1,14 @@
-# dimcoin/dim-cli
+# DIM CLI - Command Line Interface - Open Source Tools for Developer and Exchanges
 
-dim-cli is a collection of command line tools useful when working with the DIM Ecosystem using the Terminal.
+DIM CLI is a collection of command line tools for the DIM Ecosystem.
 
-This package aims to provide an easy to use Command Line Tools Suite for the DIM Ecosystem.
+Exchanges and developers could easily use this package to watch/monitor addresses and create transactions on the NEM Blockchain for DIM assets such as DIM:COIN, it also includes a Command Line Blockchain Explorer.
 
-The command line tools suite is built such that each script/command can be run in a single process using UNIX terminals. (A wrapper for MS Windows will be written soonish)
+This package aims to provide an easy to use Command Line Tools Suite for the DIM Ecosystem, suitable for exchanges to integrate DIM assets and developers that want to learn more about the NEM based DIM Ecosystem.
 
-Feel free to contribute wherever you think you can help! DIMlovers much appreciated!
+The command line tools suite is built as such that each script/command can be run in a single process using UNIX terminals. (A wrapper for MS Windows will be written soon)
+
+Feel free to contribute wherever you think you can help! #DIMlovers much appreciated!
 
 ## Download & Installation
 
@@ -26,7 +28,7 @@ You are now all set and you can use the dim-cli Package as described in the Usag
 
 ## Usage
 
-There is multiple ways to interact with this command line tools suite. You can use `npm` to start your instance the CLI and you can specify options, command and arguments to your command line call.
+There are multiple ways to interact with this command line tools suite. You can use `npm` to start the installation of the CLI Package and you can specify options, command and arguments to your command line call.
 
 Here is a write-up of some examples for running the `dim-cli` command line tools suite:
 
@@ -49,7 +51,7 @@ $ npm start wallet  [arguments]
 
 ## Examples
 
-Following examples apply for the `dim-cli` command line tools suite:
+The following examples apply for the `dim-cli` command line tools suite:
 
 ```bash
 $ dim-cli list
@@ -92,8 +94,9 @@ $ dim-cli api --url /transaction/get?hash=dbe07d06b126196ee87d5bd7a10871caf3fd26
 
 in the love of DIM <3
 
+
 ## License
 
 This software is released under the MIT License.
 
-© 2018 DIMCoin Developers, All rights reserved.
+© 2018 DIM, All rights reserved.
