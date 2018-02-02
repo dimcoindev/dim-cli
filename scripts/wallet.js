@@ -65,6 +65,9 @@ class Command extends BaseCommand {
             "signature": "-l, --latest",
             "description": "Get the latest transactions of a given wallet."
         }, {
+            "signature": "-s, --send",
+            "description": "Send a transaction from the given Wallet (see also -txR, -txM)."
+        }, {
             "signature": "-R, --raw",
             "description": "Get RAW JSON data displayed instead of the default Wallet Display."
         }, {
@@ -590,6 +593,42 @@ class Command extends BaseCommand {
             console.error("\r\n[ERROR] [" + (new Date()) + "] " + JSON.stringify(e));
             return false;
         }
+    }
+
+    /**
+     * This method will create a Transaction for a given DIM Wallet.
+     * 
+     * You should configure the call to this command using the command line
+     * argument prefixed by "tx", that includes but is not limited to:
+     * 
+     * - txReceiver : NEM Address of the Transaction Receiver.
+     * - txMessage : Content of the Transaction message (if any).
+     * - txMosaic : Fully Qualified Mosaic Name
+     * - txAmount : Set the amount for the last Mosaic *or XEM* in case no mosaic was defined
+     * 
+     * Currently, if you wish to send `dim:coin`, you will need to call the following:
+     * 
+     * @example Set dim:coin amount in transaction creation
+     * $ dim-cli wallet --address ... --txReceiver ... --txMosaic dim:coin --txAmount 10
+     * 
+     * This example above will send `10 dim:coin`. Please be sure to *know about the Divisibility*
+     * of NEM Mosaics. In fact, dim:coin is a mosaic with a divisibility of 6 which means if you
+     * want to send out `15 dim:coin` units, you will need to effectively send 15 million. If you
+     * want to pass a *raw amount* as an argument, you can do so as follows:
+     * 
+     * @example Set dim:coin amount in transaction creation
+     * $ dim-cli wallet --address ... --txReceiver ... --txMosaic dim:coin --txRawAmount 15000
+     * 
+     * This example above will send `0.015000 dim:coin`.
+     * 
+     * *Transactions sent with this tool will always be signed before they are sent to a NIS
+     * network node. This is to avoid any earsdropping during transactions creation.*
+     * 
+     * @param {*} argv 
+     * @param {*} address 
+     */
+    async sendTransaction(argv, address) {
+        this.initAPI();
     }
 
     /**
