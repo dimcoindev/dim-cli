@@ -1,12 +1,14 @@
-# dimcoin/dim-cli
+# DIM CLI - Command Line Interface - Open Source Tools for Developer and Exchanges
 
-dim-cli is a collection of command line tools useful when working with the DIM Ecosystem using the Terminal.
+DIM CLI is a collection of command line tools for the DIM Ecosystem.
 
-This package aims to provide an easy to use Command Line Tools Suite for the DIM Ecosystem.
+Exchanges and developers could easily use this package to watch/monitor addresses and create transactions on the NEM Blockchain for DIM assets such as DIM:COIN, it also includes a Command Line Blockchain Explorer.
 
-The command line tools suite is built such that each script/command can be run in a single process using UNIX terminals. (A wrapper for MS Windows will be written soonish)
+This package aims to provide an easy to use Command Line Tools Suite for the DIM Ecosystem, suitable for exchanges to integrate DIM assets and developers that want to learn more about the NEM based DIM Ecosystem.
 
-Feel free to contribute wherever you think you can help! DIMlovers much appreciated!
+The command line tools suite is built as such that each script/command can be run in a single process using UNIX terminals. (A wrapper for MS Windows will be written soon)
+
+Feel free to contribute wherever you think you can help! #DIMlovers much appreciated!
 
 ## Download & Installation
 
@@ -24,9 +26,42 @@ $ source ~/.bashrc
 
 You are now all set and you can use the dim-cli Package as described in the Usage section.
 
+## Exchange integration Guide
+
+You can use this package to integrate DIM into your exchange! Following is an example of how an exchange can use the DIM toolsuite to manage end-users funds:
+
+### Step 1: DIM Deposits
+
+The `dim:coin` Mosaic (asset on the NEM blockchain) has a `divisibility of 6`. As a result, you will always be working with *micro amounts*. Micro amounts are *the smallest possible unit of `dim:coin`*. This makes sure that we never work with floating point numbers and instead, **always use integers to represent `dim:coin` amounts**.
+
+Following example will let you **monitor DIM Wallet addresses** on the NEM Blockchain. There is two commands included, the first lets you monitor *unconfirmed* transactions, those transactions should not be trusted as they do not include a confirmation yet. The second command lets you **monitor Deposits** on given DIM Wallets.
+
+```bash
+$ dim-cli api --url /account/unconfirmedTransactions?address=TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ
+$ dim-cli api --url /account/transfers/incoming?address=TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ
+```
+
+There is another option for this which lets you **monitor addresses using Websocket connections**. This will give you the same data as the above example, but using Websockets:
+
+```bash
+$ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --watch
+```
+
+### Step 2: DIM Withdrawals
+
+Sending money on the NEM Blockchain containing DIM Assets can be done quite easily with this package too. NEM proposes very advanced features such as Multi-Signature Wallets to secure your funds, please have a read about *hot wallets* and *cold wallets* and also about *multi signature NEM accounts* before you store the funds of your platform in an insecure wallet.
+
+Following commands will let you send a transaction on the NEM Blockchain containing DIM Assets such as `dim:coin` for example.
+
+```bash
+$ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --txReceiver TD2PEY23Y6O3LNGAO4YJYNDRQS3IRTEC7PZUIWLT --txMosaic dim:coin --txAmount 15
+```
+
+The example above would create a transaction **from TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ**, sending `15 dim:coin` **to TD2PEY23Y6O3LNGAO4YJYNDRQS3IRTEC7PZUIWLT**. You can use multiple `--txMosaic`, multiple `--txAmount` and also multiple `--txRawAmount`, this is to provide with more flexibility when working with either of v1 or v2 transactions on the NEM blockchain.
+
 ## Usage
 
-There is multiple ways to interact with this command line tools suite. You can use `npm` to start your instance the CLI and you can specify options, command and arguments to your command line call.
+There are multiple ways to interact with this command line tools suite. You can use `npm` to start the installation of the CLI Package and you can specify options, command and arguments to your command line call.
 
 Here is a write-up of some examples for running the `dim-cli` command line tools suite:
 
@@ -49,7 +84,7 @@ $ npm start wallet  [arguments]
 
 ## Examples
 
-Following examples apply for the `dim-cli` command line tools suite:
+The following examples apply for the `dim-cli` command line tools suite:
 
 ```bash
 $ dim-cli list
@@ -92,8 +127,9 @@ $ dim-cli api --url /transaction/get?hash=dbe07d06b126196ee87d5bd7a10871caf3fd26
 
 in the love of DIM <3
 
+
 ## License
 
 This software is released under the MIT License.
 
-© 2018 DIMCoin Developers, All rights reserved.
+© 2018 DIM, All rights reserved.
