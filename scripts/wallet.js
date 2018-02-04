@@ -65,8 +65,8 @@ class Command extends BaseCommand {
             "signature": "-l, --latest",
             "description": "Get the latest transactions of a given wallet."
         }, {
-            "signature": "-s, --send",
-            "description": "Send a transaction from the given Wallet (see also -txR, -txM)."
+            "signature": "-C, --create",
+            "description": "Create a transaction from the given Wallet (see also --txRecipient, --txMosaic, etc.)."
         }, {
             "signature": "-R, --raw",
             "description": "Get RAW JSON data displayed instead of the default Wallet Display."
@@ -79,6 +79,24 @@ class Command extends BaseCommand {
         }, {
             "signature": "-f, --file <wltfile>",
             "description": "Open a wallet through a .wlt file backup (This will need a password)."
+        }, {
+            "signature": "-r, --txRecipient <address>",
+            "description": "Set the Recipient NEM address."
+        }, {
+            "signature": "-m, --txMessage <message>",
+            "description": "Set a message for a new transaction creation."
+        }, {
+            "signature": "-M, --txMosaic <mosaic>",
+            "description": "Add a mosaic attachment (Fully qualified mosaic name). Separate multiple mosaic names by comma."
+        }, {
+            "signature": "-A, --txAmount <amount>",
+            "description": "Set the Amount of the latest set Mosaic. Separate multiple mosaic amounts by comma."
+        }, {
+            "signature": "-r, --txRawAmount <amount>",
+            "description": "Set the Raw Amount of the latest set Mosaic (Expressed in the smallest unit possible). Separate multiple mosaic amounts by comma."
+        }, {
+            "signature": "-S, --privateKey <hexadecimal>",
+            "description": "Set the Private Key in hexadecimal format that will be used to *sign* your created transaction. Private Keys are never *stored* and never *sent* over any network."
         }];
 
         this.examples = [
@@ -86,6 +104,7 @@ class Command extends BaseCommand {
             "dim-cli wallet --file /home/alice/Downloads/alices_wallet.wlt --overview",
             "dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --watch",
             "dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --export",
+            "dim-cli wallet --create --address NAMZG7CHE3JDSMYTKQNWSD5AAYGV5RGJ6PULC3PC --txRecipient ND7AQE2CLEFS7BJMQW6Y7PWNJGQTEU4WMML33INI --txMosaic dim:coin,nem:xem --txAmount 10,15 --privateKey xxx"
         ];
 
         this.wallet = undefined;
@@ -129,6 +148,9 @@ class Command extends BaseCommand {
         else if (env.watch)
             // --watch
             return this.watchAddress(env, this.wallet.accounts["0"].address);
+        else if (env.create)
+            // --create
+            return this.createTransaction(env, this.wallet.accounts["0"].address);
 
         // the end-user has not specified `--overview`, `--balances` or 
         // `--latest` command line arguments.
@@ -164,12 +186,14 @@ class Command extends BaseCommand {
         var ba = function() { this.accountBalances(env, address); }.bind(this);
         var tx = function() { this.latestTransactions(env, address); }.bind(this);
         var wa = function() { this.watchAddress(env, address); }.bind(this);
+        var cr = function() { this.createTransaction(env, address); }.bind(this);
 
         this.displayMenu("Wallet Utilities", {
             "0": {title: "Account Overview", callback: ov},
             "1": {title: "Account Balances", callback: ba},
             "2": {title: "Recent Transactions", callback: tx},
             "3": {title: "Watch Address", callback: wa},
+            "4": {title: "Create Transaction", callback: cr},
         }, function() { this.end(); }.bind(this), true);
     }
 
@@ -266,7 +290,7 @@ class Command extends BaseCommand {
 
         if (parsed.error) {
             console.error("NIS API Request Error: " + parsed.error + " - " + parsed.message + " - Status: " + parsed.status);
-            return false;
+            return this.end();
         }
 
         let acctMeta = parsed.meta;
@@ -308,7 +332,7 @@ class Command extends BaseCommand {
             let rawJSON = JSON.stringify(rawData);
             let j = argv.beautify ? this.beautifyJSON(rawJSON) : rawJSON;
             console.log(j);
-            return false;
+            return this.end();
         }
         else {
             // table display (no JSON)
@@ -375,6 +399,8 @@ class Command extends BaseCommand {
                 }, msigs);
             }
         }
+
+        return this.end();
     }
 
     /**
@@ -395,7 +421,7 @@ class Command extends BaseCommand {
 
         if (parsed.error) {
             console.error("NIS API Request Error: " + parsed.error + " - " + parsed.message + " - Status: " + parsed.status);
-            return false;
+            return this.end();
         }
 
         let tblHead = {
@@ -423,13 +449,15 @@ class Command extends BaseCommand {
                     let rawJSON = JSON.stringify({data: balances});
                     let j = argv.beautify ? this.beautifyJSON(rawJSON) : rawJSON;
                     console.log(j);
-                    return false;
+                    return this.end();
                 }
                 else {
                     this.displayTable("Wallet Balances", tblHead, balances);
                 }
             }
         }
+
+        return this.end();
     }
 
     /**
@@ -448,7 +476,7 @@ class Command extends BaseCommand {
 
         if (parsed.error) {
             console.error("NIS API Request Error: " + parsed.error + " - " + parsed.message + " - Status: " + parsed.status);
-            return false;
+            return this.end();
         }
 
         let tblHead = {
@@ -528,11 +556,13 @@ class Command extends BaseCommand {
             let rawJSON = JSON.stringify({data: trxes});
             let j = argv.beautify ? this.beautifyJSON(rawJSON) : rawJSON;
             console.log(j);
-            return false;
+            return this.end();
         }
         else {
             this.displayTable("Wallet Latest Transactions", tblHead, trxes);
         }
+
+        return this.end();
     }
 
     /**
@@ -591,7 +621,7 @@ class Command extends BaseCommand {
         catch(e) {
             // re-issue connection
             console.error("\r\n[ERROR] [" + (new Date()) + "] " + JSON.stringify(e));
-            return false;
+            return this.end();
         }
     }
 
@@ -601,10 +631,10 @@ class Command extends BaseCommand {
      * You should configure the call to this command using the command line
      * argument prefixed by "tx", that includes but is not limited to:
      * 
-     * - txReceiver : NEM Address of the Transaction Receiver.
-     * - txMessage : Content of the Transaction message (if any).
-     * - txMosaic : Fully Qualified Mosaic Name
-     * - txAmount : Set the amount for the last Mosaic *or XEM* in case no mosaic was defined
+     * - --txReceiver : NEM Address of the Transaction Receiver.
+     * - --txMessage : Content of the Transaction message (if any).
+     * - --txMosaic : Fully Qualified Mosaic Name
+     * - --txAmount : Set the amount for the last Mosaic *or XEM* in case no mosaic was defined
      * 
      * Currently, if you wish to send `dim:coin`, you will need to call the following:
      * 
@@ -627,8 +657,81 @@ class Command extends BaseCommand {
      * @param {*} argv 
      * @param {*} address 
      */
-    async sendTransaction(argv, address) {
+    async createTransaction(argv, address) {
         this.initAPI();
+
+        let recipient = argv.txRecipient;
+        let amount = argv.txAmount;
+        let rawAmt = argv.txRawAmount;
+        let mosaics = argv.txMosaic;
+        let message = argv.txMessage && argv.txMessage.length ? argv.txMessage : "";
+        let privateKey = argv.privateKey;
+
+        if (! recipient || (!amount && !rawAmt)) {
+            console.error("Mandatory parameter --txRecipient and/or one of --txAmount or --txRawAmount are missing.");
+            return this.end();
+        }
+
+        let amounts = amount && amount.length ? amount.split(",") : null;
+        let raws = rawAmt && rawAmt.length ? rawAmt.split(",") : null;
+        let mosaicNames = mosaics && mosaics.length ? mosaics.split(",") : null;
+        recipient = recipient.replace(/\-\s/g, '');
+
+        if (!amounts.length && !raws.length) {
+            console.error("Mandatory parameter --txAmount or --txRawAmount must contain Integer Amounts separated by comma.");
+            return this.end();
+        }
+
+        if (! amounts.length)
+            amounts = raws;
+
+        if (!recipient || !this.api.SDK.model.address.isFromNetwork(recipient, this.api.networkId)) {
+            console.error("Invalid recipient address provided: '" + recipient + "'");
+            return this.end();
+        }
+
+        if (!privateKey || (privateKey.length != 64 && privateKey.length != 66)) {
+            console.error("Invalid private key format provided. The --privateKey argument should contain 64 characters in hexadecimal format (32 bytes).");
+            return this.end();
+        }
+
+        let amountByCurrencies = this.extractAmounts_(mosaicNames, amounts);
+        let definitions = await this.fetchDefinitions_(Object.keys(amountByCurrencies));
+
+        // in case of a Mosaic transfer (more than one currency or *only* XEM),
+        // the so-called "xemAmount" is used as a multiplier.
+        let isXEMTransfer = mosaicNames.length == 1 && mosaicNames[0] == "nem:xem";
+        let xemAmount = isXEMTransfer ? amountByCurrencies["nem:xem"] : 1;
+
+        var common = this.api.SDK.model.objects.create("common")("", privateKey);
+
+        // Create an un-prepared mosaic transfer transaction object (use same object as transfer tansaction)
+        var transferTransaction = this.api.SDK.model.objects.create("transferTransaction")(recipient, xemAmount, (message || ''));
+
+        // Create mosaic attachments
+        let entity = null;
+        if (! isXEMTransfer) {
+            let currencies = Object.keys(amountByCurrencies);
+            for (let i = 0, m = currencies.length; i < m; i++) {
+                let currency = currencies[i];
+                let ns = currency.replace(/(.*):(.*)/, '$1');
+                let name = currency.replace(/(.*):(.*)/, '$2');
+
+                var mosaicAttachment = this.api.SDK.model.objects.create("mosaicAttachment")(ns, name, amountByCurrencies[currency]);
+                transferTransaction.mosaics.push(mosaicAttachment);
+            }
+
+            entity = this.api.SDK.model.transactions
+                             .prepare("mosaicTransferTransaction")(common, transferTransaction, definitions, this.api.networkId);
+        }
+        else {
+            entity = this.api.SDK.model.transactions
+                             .prepare("transferTransaction")(common, transferTransaction, this.api.networkId);
+        }
+
+        let result = await this.api.SDK.model.transactions.send(common, entity, this.api.node);
+        console.log("RESULT: ", JSON.stringify(result));
+        return this.end();
     }
 
     /**
@@ -646,6 +749,86 @@ class Command extends BaseCommand {
                 return reject(err);  
             });
         });
+    }
+
+    /**
+     * Helper method to extract mosaic amounts from mosaics arrays.
+     * 
+     * @param {*} mosaics 
+     * @param {*} amounts 
+     */
+    extractAmounts_(mosaics, amounts) {
+        let amountByCurrencies = {};
+
+        if (!mosaics.length) {
+            return {"nem:xem": amounts.shift()};
+        }
+
+        for (let i = 0, m = mosaics.length; i < m; i++) {
+            let name = mosaics[i];
+            let amt  = amounts.shift();
+
+            let ns = name.replace(/(.*):(.*)/, '$1');
+            let ms = name.replace(/(.*):(.*)/, '$2');
+
+            if (amt == undefined) {
+                console.error("Please specify a list of amounts separated by commas in --txAmount. The order of the amounts should correspond to the order of the mosaic names list.");
+                return this.end();
+            }
+
+            amountByCurrencies[name] = amt;
+        }
+
+        return amountByCurrencies;
+    }
+
+    /**
+     * Helper to read Mosaic Definitions from the NIS API.
+     * 
+     * @param {*} amountByCurrencies 
+     */
+    async fetchDefinitions_(currencies) {
+
+        // get the different namespaces names
+        let mosaicsByNS = {};
+        for (let i = 0, m = currencies.length; i < m; i++) {
+            let fqmn = currencies[i];
+            let ns = fqmn.replace(/(.*):(.*)/, '$1');
+            let ms = fqmn.replace(/(.*):(.*)/, '$2');
+
+            if (! mosaicsByNS[ns]) {
+                mosaicsByNS[ns] = [];
+            }
+
+            mosaicsByNS[ns].push(ms);
+        }
+
+        // keep only the namespace names
+        let namespaces = Object.keys(mosaicsByNS);
+
+        // get mosaic definition for needed currencies
+        let definitions = this.api.SDK.model.objects.get("mosaicDefinitionMetaDataPair");
+        for (let n = 0, m = namespaces.length; n < m; n++) {
+            let ns = namespaces[n];
+            if (ns == "nem") continue;
+
+            let result = await this.api.SDK.com.requests.namespace
+                                       .mosaicDefinitions(this.api.node, ns);
+
+            let mosaics = mosaicsByNS[ns];
+            for (let x = 0, y = mosaics.length; x < y; x++) {
+                let mosaic = mosaics[x];
+                let fqmn = ns + ":" + mosaic;
+                let definition = this.api.SDK.utils.helpers.searchMosaicDefinitionArray(result.data, [mosaic]);
+
+                // register mosaic definition
+                definitions[fqmn] = {
+                    mosaicDefinition: definition[fqmn]
+                };
+            }
+        }
+
+        return definitions;
     }
 }
 
