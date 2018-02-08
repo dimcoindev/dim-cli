@@ -19,11 +19,13 @@
 import DIMTransaction from './model/dim-transaction';
 import DIMWallet from './model/dim-wallet';
 import DIMTokenHolder from './model/dim-tokenholder';
+import DIMMosaicHolder from './model/dim-mosaicholder';
 import DIMUtils from './helpers';
 
 export default {
     Transaction: DIMTransaction,
     Wallet: DIMWallet,
     TokenHolder: DIMTokenHolder,
+    MosaicHolder: DIMMosaicHolder,
     Utils: DIMUtils
 };

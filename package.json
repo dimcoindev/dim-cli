@@ -1,6 +1,6 @@
 {
   "name": "dim-cli",
-  "version": "0.6.13",
+  "version": "0.6.14",
   "author": "DIMCoin Developers",
   "description": "DIM-cli is a collection of command line tools for the DIM Ecosystem using the Terminal",
   "keywords": [
