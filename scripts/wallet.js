@@ -17,7 +17,7 @@
 "use strict";
 
 import BaseCommand from "../core/command";
-import DIM from "../sdk/helpers";
+import DIM from "../sdk/index";
 import Request from "request";
 
 import * as JSONBeautifier from "prettyjson";
@@ -44,7 +44,8 @@ class Command extends BaseCommand {
                     + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ\n"
                     + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --balances\n"
                     + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --balances --raw\n"
-                    + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --overview");
+                    + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --overview"
+                    + "    " + "  $ dim-cli wallet --create --address TCTIMURL5LPKNJYF3OB3ACQVAXO3GK5IU2BJMPSU --txMultisig MULTISIG_PRIVATE_KEY --txRecipient TAEPNTY3Z6YJSU3AKM3UE7ZJUOO42OZBOX444H3N --txMosaic dim:coin --txAmount 15 --privateKey ISSUER_PRIVATE_KEY --txIssuer TBPGYGLO4QMZLVR4TZF7GSL5IHJAUNPFXFNEEP4V");
 
         this.options = [{
             "signature": "-h, --help",
@@ -94,6 +95,12 @@ class Command extends BaseCommand {
         }, {
             "signature": "-r, --txRawAmount <amount>",
             "description": "Set the Raw Amount of the latest set Mosaic (Expressed in the smallest unit possible). Separate multiple mosaic amounts by comma."
+        }, {
+            "signature": "-M, --txMultisig <msigPrivateKey>",
+            "description": "Set this flag parameter whenever you need transactions to be Multi-Signature Transactions (Recommended)."
+        }, {
+            "signature": "-I, --txIssuer <address>",
+            "description": "Set the Multi Signature Transaction *issuer* Wallet Address."
         }, {
             "signature": "-S, --privateKey <hexadecimal>",
             "description": "Set the Private Key in hexadecimal format that will be used to *sign* your created transaction. Private Keys are never *stored* and never *sent* over any network."
@@ -665,6 +672,8 @@ class Command extends BaseCommand {
         let rawAmt = argv.txRawAmount;
         let mosaics = argv.txMosaic;
         let message = argv.txMessage && argv.txMessage.length ? argv.txMessage : "";
+        let multisig = argv.txMultisig || false;
+        let issuerAddr = argv.txIssuer || this.wallet.accounts[0].address;
         let privateKey = argv.privateKey;
 
         if (! recipient || (!amount && !rawAmt)) {
@@ -690,8 +699,16 @@ class Command extends BaseCommand {
             return this.end();
         }
 
+        let senderInfo = await DIM.Data.loadWalletInfo(this.api.node, this.wallet.accounts[0].address);
+
         if (!privateKey || (privateKey.length != 64 && privateKey.length != 66)) {
             console.error("Invalid private key format provided. The --privateKey argument should contain 64 characters in hexadecimal format (32 bytes).");
+            return this.end();
+        }
+        else if (multisig && ! await DIM.Data.isCosignerKey(issuerAddr, senderInfo)) {
+            // verify that the provided private key is the private key of one of the
+            // cosigners of --address
+            console.log("Invalid --privateKey provided. Must be a cosigner of '" + senderInfo.account.address + "'");
             return this.end();
         }
 
@@ -707,6 +724,11 @@ class Command extends BaseCommand {
 
         // Create an un-prepared mosaic transfer transaction object (use same object as transfer tansaction)
         var transferTransaction = this.api.SDK.model.objects.create("transferTransaction")(recipient, xemAmount, (message || ''));
+
+        // When --txMultisig is provided, we need to wrap the inner transaction
+        if (multisig) {
+            transferTransaction.isMultisig = true;
+        }
 
         // Create mosaic attachments
         let entity = null;
@@ -729,8 +751,20 @@ class Command extends BaseCommand {
                              .prepare("transferTransaction")(common, transferTransaction, this.api.networkId);
         }
 
-        let result = await this.api.SDK.model.transactions.send(common, entity, this.api.node);
-        console.log("RESULT: ", JSON.stringify(result));
+        if (multisig && entity.otherTrans) {
+            let multisigKP = this.api.SDK.crypto.keyPair.create(multisig);
+
+            entity.otherTrans.signer = multisigKP.publicKey.toString();
+        }
+
+        try {
+            let result = await this.api.SDK.model.transactions.send(common, entity, this.api.node);
+            console.log("RESULT: ", JSON.stringify(result));
+        } 
+        catch (e) {
+            console.error("Could not publish transaction, error occured: ", e);
+        }
+
         return this.end();
     }
 

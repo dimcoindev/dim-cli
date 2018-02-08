@@ -21,11 +21,18 @@ import DIMWallet from './model/dim-wallet';
 import DIMTokenHolder from './model/dim-tokenholder';
 import DIMMosaicHolder from './model/dim-mosaicholder';
 import DIMUtils from './helpers';
+import DIMWalletData from './wallets.js';
+import DIMNetwork from './network.js';
+
+let data = new DIMWalletData();
+let network = new DIMNetwork();
 
 export default {
     Transaction: DIMTransaction,
     Wallet: DIMWallet,
     TokenHolder: DIMTokenHolder,
     MosaicHolder: DIMMosaicHolder,
-    Utils: DIMUtils
+    Utils: DIMUtils,
+    Data: data,
+    Network: network
 };
