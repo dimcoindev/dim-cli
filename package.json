@@ -1,6 +1,6 @@
 {
   "name": "dim-cli",
-  "version": "0.6.17",
+  "version": "0.6.18",
   "author": "DIMCoin Developers",
   "description": "DIM-cli is a collection of command line tools for the DIM Ecosystem using the Terminal",
   "keywords": [
@@ -30,7 +30,7 @@
     "easy-table": "1.1.0",
     "mongoose": "^5.0.4",
     "mongoose-increment": "~0.8.0",
-    "nem-sdk": "git://github.com/evias/NEM-sdk.git",
+    "nem-sdk": "git://github.com/QuantumMechanics/NEM-sdk.git",
     "prettyjson": "1.2.1",
     "request": "2.81.0",
     "simple-terminal-menu": "1.1.3",

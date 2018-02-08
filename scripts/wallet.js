@@ -45,7 +45,7 @@ class Command extends BaseCommand {
                     + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --balances\n"
                     + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --balances --raw\n"
                     + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --overview"
-                    + "    " + "  $ dim-cli wallet --create --address TCTIMURL5LPKNJYF3OB3ACQVAXO3GK5IU2BJMPSU --txMultisig MULTISIG_PRIVATE_KEY --txRecipient TAEPNTY3Z6YJSU3AKM3UE7ZJUOO42OZBOX444H3N --txMosaic dim:coin --txAmount 15 --privateKey ISSUER_PRIVATE_KEY --txIssuer TBPGYGLO4QMZLVR4TZF7GSL5IHJAUNPFXFNEEP4V");
+                    + "    " + "  $ dim-cli wallet --create --address TCTIMURL5LPKNJYF3OB3ACQVAXO3GK5IU2BJMPSU --txMultisig MULTISIG_PRIVATE_KEY --txRecipient TAEPNTY3Z6YJSU3AKM3UE7ZJUOO42OZBOX444H3N --txMosaic dim:coin --txAmount 15 --privateKey ISSUER_PRIVATE_KEY");
 
         this.options = [{
             "signature": "-h, --help",
@@ -99,9 +99,6 @@ class Command extends BaseCommand {
             "signature": "-M, --txMultisig <msigPrivateKey>",
             "description": "Set this flag parameter whenever you need transactions to be Multi-Signature Transactions (Recommended)."
         }, {
-            "signature": "-I, --txIssuer <address>",
-            "description": "Set the Multi Signature Transaction *issuer* Wallet Address."
-        }, {
             "signature": "-S, --privateKey <hexadecimal>",
             "description": "Set the Private Key in hexadecimal format that will be used to *sign* your created transaction. Private Keys are never *stored* and never *sent* over any network."
         }];
@@ -111,7 +108,8 @@ class Command extends BaseCommand {
             "dim-cli wallet --file /home/alice/Downloads/alices_wallet.wlt --overview",
             "dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --watch",
             "dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --export",
-            "dim-cli wallet --create --address NAMZG7CHE3JDSMYTKQNWSD5AAYGV5RGJ6PULC3PC --txRecipient ND7AQE2CLEFS7BJMQW6Y7PWNJGQTEU4WMML33INI --txMosaic dim:coin,nem:xem --txAmount 10,15 --privateKey xxx"
+            "dim-cli wallet --create --address NAMZG7CHE3JDSMYTKQNWSD5AAYGV5RGJ6PULC3PC --txRecipient ND7AQE2CLEFS7BJMQW6Y7PWNJGQTEU4WMML33INI --txMosaic dim:coin,nem:xem --txAmount 10,15 --privateKey xxx",
+            "dim-cli wallet --create --address TCTIMURL5LPKNJYF3OB3ACQVAXO3GK5IU2BJMPSU --txMultisig MULTISIG_PRIVATE_KEY --txRecipient TAEPNTY3Z6YJSU3AKM3UE7ZJUOO42OZBOX444H3N --txMosaic dim:coin --txAmount 15 --privateKey ISSUER_PRIVATE_KEY"
         ];
 
         this.wallet = undefined;
@@ -673,8 +671,8 @@ class Command extends BaseCommand {
         let mosaics = argv.txMosaic;
         let message = argv.txMessage && argv.txMessage.length ? argv.txMessage : "";
         let multisig = argv.txMultisig || false;
-        let issuerAddr = argv.txIssuer || this.wallet.accounts[0].address;
         let privateKey = argv.privateKey;
+        let issuerKP = this.api.SDK.crypto.keyPair.create(privateKey);
 
         if (! recipient || (!amount && !rawAmt)) {
             console.error("Mandatory parameter --txRecipient and/or one of --txAmount or --txRawAmount are missing.");
@@ -700,6 +698,7 @@ class Command extends BaseCommand {
         }
 
         let senderInfo = await DIM.Data.loadWalletInfo(this.api.node, this.wallet.accounts[0].address);
+        let issuerAddr = this.api.SDK.model.address.toAddress(issuerKP.publicKey.toString(), this.api.networkId);
 
         if (!privateKey || (privateKey.length != 64 && privateKey.length != 66)) {
             console.error("Invalid private key format provided. The --privateKey argument should contain 64 characters in hexadecimal format (32 bytes).");
