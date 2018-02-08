@@ -129,6 +129,20 @@ class DIMSchema {
         });
         this.tables["Wallet"] = this.adapter.model("DIMWallet", walletSchema);
 
+        /**
+         * MongoDb collection `DIMTokenHolders`
+         */
+        let mosaicHolderSchema = new this.adapter.Schema({
+            address: String,
+            tokenAmount: { type: Number, min: 0 },
+            currency: String,
+            holderPercentage: { type: Number, min: 0 },
+            holderImportance: { type: Number, min: 0 },
+            createdAt: { type: Number, min: 0 },
+            updatedAt: { type: Number, min: 0 }
+        });
+        this.tables["MosaicHolder"] = this.adapter.model("DIMMosaicHolder", mosaicHolderSchema);
+
         return this;
     }
 }

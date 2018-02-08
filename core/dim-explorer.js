@@ -119,8 +119,9 @@ class DIMExplorer {
                                  .namespace.mosaicDefinitions(this.api.node, ns);
 
         let definitions = response.data || [];
+
         for (let d = 0; d < definitions.length; d++) {
-            let s = this.api.SDK.utils.format.mosaicIdToName(definitions[d].id);
+            let s = this.api.SDK.utils.format.mosaicIdToName(definitions[d].mosaic.id);
             if (s !== currency) continue;
 
             let params = this.parameters.fromMosaicDefinition(definitions[d]);

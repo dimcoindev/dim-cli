@@ -18,15 +18,6 @@
 
 import DIMModel from "./base";
 
-/**
- * The DIMMosaicHolder class is *only for dim:token Mosaic*
- * and should not be used for the speculative coin: *dim:coin*
- * which is available on exchanges.
- * 
- * DIM Token Holders are people holding the *dim:token* mosaic,
- * this mosaic is not meant to be exchangeable anywhere else than
- * on the upcoming Hybse.
- */
 class DIMMosaicHolder extends DIMModel {
 
     /**
