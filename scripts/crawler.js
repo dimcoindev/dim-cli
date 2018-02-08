@@ -285,7 +285,7 @@ class Command extends BaseCommand {
             if (this.formatterTrxes.getRows().length)
                 this.formatterTrxes.save();
 
-            console.error(err);
+            console.error(e);
             return this.end();
         }
     }
