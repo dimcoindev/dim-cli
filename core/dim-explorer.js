@@ -107,8 +107,8 @@ class DIMExplorer {
      */
     async getCurrency(currency) {
 
-        if (this.mosaicParameters.hasOwnProperty(currency)) {
-            return this.mosaicParameters[currency];
+        if (this.parameters.mosaicParameters.hasOwnProperty(currency)) {
+            return this.parameters.mosaicParameters[currency];
         }
 
         let ns = currency.replace(/(.*):(.*)/, "$1");

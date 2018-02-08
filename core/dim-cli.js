@@ -82,6 +82,7 @@ cli.command("list")
     log("    " + keyword("api <arguments>") + normal("\t\tSend HTTP API requests to NIS nodes"));
     log("    " + keyword("wallet <arguments>") + normal("\t\tHeadless DIM wallet implementation"));
     log("    " + keyword("finder <arguments>") + normal("\t\tDIM Token Holder Finder"));
+    log("    " + keyword("crawler <arguments>") + normal("\t\tDIM Mosaic Holder Crawler"));
     log("    " + keyword("explorer <arguments>") + normal("\t\tDIM Explorer (alpha)"));
     log("    " + keyword("serve <arguments>") + normal("\t\tMake the DIM CLI command line tools suite available through a HTTP API. (not yet implemented)"));
     log("");
