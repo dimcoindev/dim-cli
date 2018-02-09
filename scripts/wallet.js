@@ -23,7 +23,7 @@ import Request from "request";
 import * as JSONBeautifier from "prettyjson";
 import * as fs from "fs";
 
-var chalk = require("chalk");
+let chalk = require("chalk");
 
 class Command extends BaseCommand {
 
@@ -44,8 +44,9 @@ class Command extends BaseCommand {
                     + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ\n"
                     + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --balances\n"
                     + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --balances --raw\n"
-                    + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --overview"
-                    + "    " + "  $ dim-cli wallet --create --address TCTIMURL5LPKNJYF3OB3ACQVAXO3GK5IU2BJMPSU --txMultisig MULTISIG_PRIVATE_KEY --txRecipient TAEPNTY3Z6YJSU3AKM3UE7ZJUOO42OZBOX444H3N --txMosaic dim:coin --txAmount 15 --privateKey ISSUER_PRIVATE_KEY");
+                    + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --overview\n"
+                    + "    " + "  $ dim-cli wallet --create --address TCTIMURL5LPKNJYF3OB3ACQVAXO3GK5IU2BJMPSU --txMultisig MULTISIG_PRIVATE_KEY --txRecipient TAEPNTY3Z6YJSU3AKM3UE7ZJUOO42OZBOX444H3N --txMosaic dim:coin --txAmount 15 --privateKey ISSUER_PRIVATE_KEY\n"
+                    + "    " + "  $ dim-cli wallet --cosign --address TCTIMURL5LPKNJYF3OB3ACQVAXO3GK5IU2BJMPSU --privateKey COSIGNER_PRIVATE_KEY --txHash edbca728cb812cbbc22d243b99ed556ea7be0458bd960fbe7557eb6966733407");
 
         this.options = [{
             "signature": "-h, --help",
@@ -68,6 +69,9 @@ class Command extends BaseCommand {
         }, {
             "signature": "-C, --create",
             "description": "Create a transaction from the given Wallet (see also --txRecipient, --txMosaic, etc.)."
+        }, {
+            "signature": "-s, --cosign",
+            "description": "Create a Signature Transaction for Multisignature Accounts."
         }, {
             "signature": "-R, --raw",
             "description": "Get RAW JSON data displayed instead of the default Wallet Display."
@@ -97,7 +101,10 @@ class Command extends BaseCommand {
             "description": "Set the Raw Amount of the latest set Mosaic (Expressed in the smallest unit possible). Separate multiple mosaic amounts by comma."
         }, {
             "signature": "-M, --txMultisig <msigPrivateKey>",
-            "description": "Set this flag parameter whenever you need transactions to be Multi-Signature Transactions (Recommended)."
+            "description": "Set this flag parameter whenever you need transactions to be Multi-Signature Transactions (Recommended). When you set this flag, the value of the parameter should be the private key of the Multisignature Account."
+        }, {
+            "signature": "-H, --txHash <transactionHash>",
+            "description": "Set this parameter only in Cosigner Mode (Signature Transactions). This should contain the hexadecimal representation of the Transaction Hash to be signed."
         }, {
             "signature": "-S, --privateKey <hexadecimal>",
             "description": "Set the Private Key in hexadecimal format that will be used to *sign* your created transaction. Private Keys are never *stored* and never *sent* over any network."
@@ -109,7 +116,8 @@ class Command extends BaseCommand {
             "dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --watch",
             "dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --export",
             "dim-cli wallet --create --address NAMZG7CHE3JDSMYTKQNWSD5AAYGV5RGJ6PULC3PC --txRecipient ND7AQE2CLEFS7BJMQW6Y7PWNJGQTEU4WMML33INI --txMosaic dim:coin,nem:xem --txAmount 10,15 --privateKey xxx",
-            "dim-cli wallet --create --address TCTIMURL5LPKNJYF3OB3ACQVAXO3GK5IU2BJMPSU --txMultisig MULTISIG_PRIVATE_KEY --txRecipient TAEPNTY3Z6YJSU3AKM3UE7ZJUOO42OZBOX444H3N --txMosaic dim:coin --txAmount 15 --privateKey ISSUER_PRIVATE_KEY"
+            "dim-cli wallet --create --address TCTIMURL5LPKNJYF3OB3ACQVAXO3GK5IU2BJMPSU --txMultisig MULTISIG_PRIVATE_KEY --txRecipient TAEPNTY3Z6YJSU3AKM3UE7ZJUOO42OZBOX444H3N --txMosaic dim:coin --txAmount 15 --privateKey ISSUER_PRIVATE_KEY",
+            "dim-cli wallet --cosign --address TCTIMURL5LPKNJYF3OB3ACQVAXO3GK5IU2BJMPSU --privateKey COSIGNER_PRIVATE_KEY --txHash edbca728cb812cbbc22d243b99ed556ea7be0458bd960fbe7557eb6966733407"
         ];
 
         this.wallet = undefined;
@@ -156,6 +164,9 @@ class Command extends BaseCommand {
         else if (env.create)
             // --create
             return this.createTransaction(env, this.wallet.accounts["0"].address);
+        else if (env.cosign)
+            // --cosign
+            return this.createSignature(env, this.wallet.accounts["0"].address);
 
         // the end-user has not specified `--overview`, `--balances` or 
         // `--latest` command line arguments.
@@ -187,11 +198,12 @@ class Command extends BaseCommand {
      * to the currently loaded Wallet.
      */
     addressMenu(env, address) {
-        var ov = function() { this.accountOverview(env, address); }.bind(this);
-        var ba = function() { this.accountBalances(env, address); }.bind(this);
-        var tx = function() { this.latestTransactions(env, address); }.bind(this);
-        var wa = function() { this.watchAddress(env, address); }.bind(this);
-        var cr = function() { this.createTransaction(env, address); }.bind(this);
+        let ov = function() { this.accountOverview(env, address); }.bind(this);
+        let ba = function() { this.accountBalances(env, address); }.bind(this);
+        let tx = function() { this.latestTransactions(env, address); }.bind(this);
+        let wa = function() { this.watchAddress(env, address); }.bind(this);
+        let cr = function() { this.createTransaction(env, address); }.bind(this);
+        let co = function() { this.createSignature(env, address); }.bind(this);
 
         this.displayMenu("Wallet Utilities", {
             "0": {title: "Account Overview", callback: ov},
@@ -199,6 +211,7 @@ class Command extends BaseCommand {
             "2": {title: "Recent Transactions", callback: tx},
             "3": {title: "Watch Address", callback: wa},
             "4": {title: "Create Transaction", callback: cr},
+            "5": {title: "Create Multisig Signature", callback: co},
         }, function() { this.end(); }.bind(this), true);
     }
 
@@ -262,6 +275,11 @@ class Command extends BaseCommand {
         return wallet;
     }
 
+    /**
+     * Helper function to initialize the API node connectivity.
+     * 
+     * @return {Boolean}
+     */
     initAPI() {
         this.api.argv = this.argv;
         if (this.wallet && this.wallet.accounts && Object.keys(this.wallet.accounts).length) {
@@ -273,6 +291,8 @@ class Command extends BaseCommand {
             // use default parameters
             this.api.connect();
         }
+
+        return true;
     }
 
     /**
@@ -631,6 +651,56 @@ class Command extends BaseCommand {
     }
 
     /**
+     * This method will create a Signature Transaction (cosign a multisig
+     * account's transaction).
+     *
+     * In case of cosigning, the --privateKey option is used to determine
+     * which cosigner is currently issuing the signature transaction.
+     *
+     * The signature transaction is then pushed onto the signatures stack
+     * of the said transaction.
+     *
+     * @param {*} argv 
+     * @param {*} address 
+     */
+    async createSignature(argv, address) {
+        this.initAPI();
+
+        let privateKey = argv.privateKey;
+        let trxHash = argv.txHash;
+
+        if (!privateKey || (privateKey.length != 64 && privateKey.length != 66)) {
+            console.error("Invalid private key format provided. The --privateKey argument should contain 64 characters in hexadecimal format (32 bytes) and should related to the Cosigner Account.");
+            return this.end();
+        }
+
+        // prepare signature transaction
+        var commonPair = this.api.SDK.model.objects.create("common")("", privateKey);
+        var signTx = this.api.SDK.model.objects.create("signatureTransaction")(this.wallet.accounts[0].address, trxHash);
+        var prepared = this.api.SDK.model.transactions.prepare("signatureTransaction")(commonPair, signTx, this.api.networkId);
+
+        // sign signature transaction and serialize
+        var secretPair = this.api.SDK.crypto.keyPair.create(privateKey);
+        var serialized = this.api.SDK.utils.serialization.serializeTransaction(prepared);
+        var signature = secretPair.sign(serialized);
+        var broadcastable = JSON.stringify({
+            "data": this.api.SDK.utils.convert.ua2hex(serialized),
+            "signature": signature.toString()
+        });
+
+        // send cosigner signature
+        try {
+            let result = await this.api.SDK.model.transactions.send(common, entity, this.api.node);
+            console.log("RESULT: ", JSON.stringify(result));
+        } 
+        catch (e) {
+            console.error("Could not publish signature transaction, error occured: ", e);
+        }
+
+        return this.end();
+    }
+
+    /**
      * This method will create a Transaction for a given DIM Wallet.
      * 
      * You should configure the call to this command using the command line
@@ -719,10 +789,10 @@ class Command extends BaseCommand {
         let isXEMTransfer = mosaicNames.length == 1 && mosaicNames[0] == "nem:xem";
         let xemAmount = isXEMTransfer ? amountByCurrencies["nem:xem"] : 1;
 
-        var common = this.api.SDK.model.objects.create("common")("", privateKey);
+        let common = this.api.SDK.model.objects.create("common")("", privateKey);
 
         // Create an un-prepared mosaic transfer transaction object (use same object as transfer tansaction)
-        var transferTransaction = this.api.SDK.model.objects.create("transferTransaction")(recipient, xemAmount, (message || ''));
+        let transferTransaction = this.api.SDK.model.objects.create("transferTransaction")(recipient, xemAmount, (message || ''));
 
         // When --txMultisig is provided, we need to wrap the inner transaction
         if (multisig) {
@@ -738,7 +808,7 @@ class Command extends BaseCommand {
                 let ns = currency.replace(/(.*):(.*)/, '$1');
                 let name = currency.replace(/(.*):(.*)/, '$2');
 
-                var mosaicAttachment = this.api.SDK.model.objects.create("mosaicAttachment")(ns, name, amountByCurrencies[currency]);
+                let mosaicAttachment = this.api.SDK.model.objects.create("mosaicAttachment")(ns, name, amountByCurrencies[currency]);
                 transferTransaction.mosaics.push(mosaicAttachment);
             }
 
