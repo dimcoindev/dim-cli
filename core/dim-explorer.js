@@ -219,7 +219,7 @@ class DIMExplorer {
      * @param {Integer} beforeTrxId 
      * @return {Object}
      */
-    async getAccountTransactions(address, beforeTrxId) {
+    async getAccountTransactions(address, beforeTrxId, filter) {
 
         if (!this.timeout) {
             this.addTimeout();
@@ -239,11 +239,11 @@ class DIMExplorer {
             this.clearTimeout();
 
             // done reading transactions
-            return this.storage.transactions;
+            return this.filterBy_(filter, this.storage.transactions);
         }
 
         // continue crawling current address (there is more transactions).
-        return await this.getAccountTransactions(address, res.lastId);
+        return await this.getAccountTransactions(address, res.lastId, filter);
     }
 
     /**
@@ -388,6 +388,108 @@ class DIMExplorer {
         }
 
         return amountByCurrencies;
+    }
+
+    /**
+     * Helper method to filter transactions either by `type` or by
+     * `operator`. This will iterate through transactions and remove
+     * the ones that don't match the said `type` or `operator`.
+     * 
+     * @see filterByType_()  
+     * @see filterByOperator_()  
+     * 
+     * @param {Integer|String} filter 
+     * @param {Object} transactions 
+     * @return {Object}
+     */
+    filterBy_(filter, transactions) {
+        let valids = {"incoming": true, "outgoing": true, "all": true};
+
+        // validate --filter (can be integer or string)
+        let dest = "all";
+        let type = parseInt(filter);
+        if (isNaN(type) && valids.hasOwnProperty(filter)) {
+            dest = filter;
+        }
+
+        if (!isNaN(type)) {
+            // filter by TYPE
+            return this.filterByType_(type, transactions);
+        }
+        else if (dest !== "all") {
+            // filter by OPERATOR
+            return this.filterByOperator_(dest, transactions);
+        }
+
+        // filter defaults to "all"
+        return transactions;
+    }
+
+    /**
+     * Helper method to filter transactions by a given `type`.
+     * 
+     * The `type` argument should be an Integer containing the TYPE
+     * of transactions on the NEM Network that you wish to export.
+     * 
+     * This type can contain one of:
+     * 
+     * - `257`   : Transfer Transactions (also for Mosaics)
+     * - `2049`  : Importance Transfer Transaction
+     * - `4097`  : Multisig Aggregate Modification Transaction (Convert account)
+     * - `4098`  : Multisig Signature Transaction
+     * - `4100`  : Multisignature Transaction
+     * - `8193`  : Provision Namespace Transaction (namespace create/renew)
+     * - `16385` : Mosaic Definition Creation Transaction
+     * - `16386` : Mosaic Supply Change Transaction
+     * 
+     * @link https://nemproject.github.io/#transaction-objects
+     * 
+     * @param {String} operator 
+     * @param {Object} transactions 
+     * @return {Object}
+     */
+    filterByType_(type, transactions) {
+        let ids = Object.keys(transactions);
+
+        for (let i = 0, m = ids.length; i < m; i++) {
+            let id = ids[i];
+            let tx = JSON.parse(transactions[id].data);
+
+            if (tx.type == 4100 && tx.otherTrans.type !== type) {
+                delete transactions[id];
+            }
+            else if (tx.type !== type) {
+                delete transactions[id];
+            }
+        }
+
+        return transactions;
+    }
+
+    /**
+     * Helper method to filter transactions by a given `operator`.
+     * 
+     * The `operator` argument should be a String object containing
+     * one of: `incoming`, `outgoing` or `all`.
+     * 
+     * @param {String} operator 
+     * @param {Object} transactions 
+     * @return {Object}
+     */
+    filterByOperator_(operator, transactions) {
+        let ids = Object.keys(transactions);
+        
+        for (let i = 0, m = ids.length; i < m; i++) {
+            let id = ids[i];
+            let tx = JSON.parse(transactions[id].data);
+            let op = transactions[id].operator; // INCOMING or OUTGOING
+
+            if (operator !== op.toLowerCase()) {
+                delete transactions[id];
+            }
+        }
+
+        return transactions;
     }
 
 }

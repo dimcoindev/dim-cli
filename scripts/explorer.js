@@ -66,6 +66,9 @@ class Command extends BaseCommand {
             "signature": "--account <account>",
             "description": "Search for Transactions in an Account and export."
         }, {
+            "signature": "--filter <transactionTypes>",
+            "description": "Filter only given transaction types for the export. This argument can contain either of 'incoming', 'outgoing' and 'all' OR and integer in case you wish to filter by NEM transaction type (transaction.type property)."
+        }, {
             "signature": "-E, --export",
             "description": "Whether to export a file or display result in Terminal."
         }, {
@@ -121,6 +124,7 @@ class Command extends BaseCommand {
         let networkFee  = env.networkFee;
         let payoutFee = env.payoutFee;
         let hasCommand = networkFee || payoutFee;
+        let filter = env.filter || "all";
 
         if (this.argv == 'help') {
             // invalid format or help asked
@@ -154,7 +158,7 @@ class Command extends BaseCommand {
             // This command will search for Transactions of an Account
 
             let whichAccount = env.account;
-            let result = await this.explorer.getAccountTransactions(whichAccount);
+            let result = await this.explorer.getAccountTransactions(whichAccount, null, filter);
             let utc = new Date().toJSON().slice(0,10).replace(/-/g, ''); // 2018-01-11 to 20180111
 
             let filePath = require("path").basename(__dirname + "/../resources");
