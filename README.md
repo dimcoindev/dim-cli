@@ -59,6 +59,28 @@ $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --txReceiver
 
 The example above would create a transaction **from TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ**, sending `15 dim:coin` **to TD2PEY23Y6O3LNGAO4YJYNDRQS3IRTEC7PZUIWLT**. You can use multiple `--txMosaic`, multiple `--txAmount` and also multiple `--txRawAmount`, this is to provide with more flexibility when working with either of v1 or v2 transactions on the NEM blockchain.
 
+### Step 3: Security
+
+Securing your funds from hackers is made easy with NEM's Multisignature Accounts and Transactions. You can read more about Multisignature Features on the NEM Blockchain in[this article](https://docs.nem.io/en/nanowallet/multisignature-multiuser).
+
+It is recommended that you use Multisignature Accounts to secure your funds with
+multiple private keys. On the NEM network, this means that you need to create
+multiple Wallets. Following scenario is *safe* from hackers on the NEM network 
+and recommended to manage DIM funds:
+
+#### Security: Multisignature Wallets
+
+- Create a premium wallet named *your-business-funds*
+- Create a premium wallet named *your-business-CFO*
+- Create a premium wallet named *your-business-manager*
+- Create a premium wallet named *your-business-backup-account*
+
+Now that you have created the 4 wallets, we will defined that the *your-business-funds* account is going to hold our funds and so, will be converted to a Multisignature account on the NEM network.
+
+With one of the three other Accounts, you must now send a `MultisigAggregateModification` transaction to convert the *your-business-funds* account into a Multisignature account. For example, use the *your-business-CFO* account to issue a transaction as explained here: [NEM - Convert an account to multisignature](https://nemproject.github.io/#converting-an-account-to-a-multisig-account).
+
+Our **recommended setup** uses a **2-of-3** multisignature configuration. This means that *for any transaction that is published with the* **your-business-funds** account, it will need a signature from at least *2 of the listed cosignatories* for the transaction to be accepted by the network. This gives you more security because the private key of the *your-business-funds* account is made obsolete and responsibility for the funds is separated on three different accounts, one of which (*your-business-backup-account*) can be used in case one of the 2 other listed cosignatories private keys is lost.
+
 ## Usage
 
 There are multiple ways to interact with this command line tools suite. You can use `npm` to start the installation of the CLI Package and you can specify options, command and arguments to your command line call.

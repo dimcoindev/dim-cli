@@ -66,6 +66,9 @@ class Command extends BaseCommand {
             "signature": "--account <account>",
             "description": "Search for Transactions in an Account and export."
         }, {
+            "signature": "-E, --export",
+            "description": "Whether to export a file or display result in Terminal."
+        }, {
             "signature": "-F, --format <format>",
             "description": "Set the export format (defaults to xlsx)."
         }];
@@ -157,7 +160,14 @@ class Command extends BaseCommand {
             let filePath = require("path").basename(__dirname + "/../resources");
             filePath = filePath + "/account-transactions-" + utc + "-" + whichAccount + "." + (env.format || 'xlsx');
 
-            this.exportToFile(filePath, result);
+            // check for --export flag to tell whether we create a file.
+            if (env.export) {
+                this.exportToFile(filePath, result);
+            }
+            else {
+                this.outputSearchResults("Account Transactions", result, whichAccount);
+            }
+
             return this.end();
         }
 

@@ -258,7 +258,7 @@ class DIMExplorer {
         // promise request result
         let transactions = await this.api.SDK.com.requests
                                          .account.transactions
-                                         .outgoing(this.api.node, address, null, beforeTrxId);
+                                         .all(this.api.node, address, null, beforeTrxId);
         return transactions;
     }
 
@@ -273,6 +273,7 @@ class DIMExplorer {
     processTransactions(address, transactions, pageSize) {
         let total = transactions.length;
         let lastId = null;
+        let sdk = this.api.SDK;
         let result = {
             "status": true, 
             "lastId": null
@@ -282,17 +283,42 @@ class DIMExplorer {
             let meta = transactions[i].meta;
             let content = transactions[i].transaction;
             let transactionId = meta.id;
+            let transactionHash = meta.hash.data;
             result['lastId'] = transactionId;
-            
+
             // identify and process multisig transactions.
             let realData = content.type === 4100 ? content.otherTrans : content;
 
+            // read specialized transaction data
+            let realSender = sdk.model.address.toAddress(realData.signer, this.api.networkId);
+            let multiplier = realData.amount;
+            let allAmounts = this.extractAmounts_(realData.mosaics, multiplier);
+            let xemAmount  = (allAmounts["nem:xem"] / Math.pow(10, 6)).toFixed(6);
+            let otherCurrencies = "";
+
+            if (realData.mosaics && realData.mosaics.length) {
+                let currencies = Object.keys(allAmounts).length;
+                for (let i = 0, m = currencies.length; i < m; i++) {
+                    let currency = currenies[i];
+                    let amount = allAmounts[currency] / Math.pow(10, 6);
+
+                    if ("nem:xem" !== currency) {
+                        otherCurrencies = (otherCurrencies.length ? " | " : "")
+                                        + amount + " " + currency;
+                    }
+                }
+            }
+
             let aggregate = {
                 "txId": transactionId,
-                "recipient": realData.recipient,
+                "txHash": transactionHash,
                 "operator": realData.recipient === address ? "INCOMING" : "OUTGOING",
                 "multiSig": content.type === 4100 ? "YES" : "NO",
                 "signatures": content.type === 4100 ? JSON.stringify(content.signatures) : [],
+                "sender": realSender,
+                "recipient": realData.recipient,
+                "xemAmount": xemAmount,
+                "otherCurrencies": otherCurrencies.length ? otherCurrencies : "N/A",
                 "data": JSON.stringify(realData)
             };
 
@@ -339,6 +365,29 @@ class DIMExplorer {
         }.bind(this), 3 * 60 * 1000);
 
         return this;
+    }
+
+    /**
+     * Helper method to extract mosaic amounts from mosaics arrays.
+     * 
+     * @param {Array} mosaics 
+     * @param {Integer} multiplier 
+     */
+    extractAmounts_(mosaics, multiplier) {
+        let amountByCurrencies = {};
+
+        if (!mosaics || !mosaics.length) {
+            return {"nem:xem": multiplier};
+        }
+
+        for (let i = 0, m = mosaics.length; i < m; i++) {
+            let name = this.api.SDK.utils.format.mosaicIdToName(mosaics[i].mosaicId);
+            let amt  = mosaics[i].quantity;
+
+            amountByCurrencies[name] = multiplier * amt;
+        }
+
+        return amountByCurrencies;
     }
 
 }

@@ -45,7 +45,7 @@ class Command extends BaseCommand {
                     + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --balances\n"
                     + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --balances --raw\n"
                     + "    " + "  $ dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --overview\n"
-                    + "    " + "  $ dim-cli wallet --create --address TCTIMURL5LPKNJYF3OB3ACQVAXO3GK5IU2BJMPSU --txMultisig MULTISIG_PRIVATE_KEY --txRecipient TAEPNTY3Z6YJSU3AKM3UE7ZJUOO42OZBOX444H3N --txMosaic dim:coin --txAmount 15 --privateKey ISSUER_PRIVATE_KEY\n"
+                    + "    " + "  $ dim-cli wallet --createTransaction--address TCTIMURL5LPKNJYF3OB3ACQVAXO3GK5IU2BJMPSU --txMultisig MULTISIG_PRIVATE_KEY --txRecipient TAEPNTY3Z6YJSU3AKM3UE7ZJUOO42OZBOX444H3N --txMosaic dim:coin --txAmount 15 --privateKey ISSUER_PRIVATE_KEY\n"
                     + "    " + "  $ dim-cli wallet --cosign --address TCTIMURL5LPKNJYF3OB3ACQVAXO3GK5IU2BJMPSU --privateKey COSIGNER_PRIVATE_KEY --txHash edbca728cb812cbbc22d243b99ed556ea7be0458bd960fbe7557eb6966733407");
 
         this.options = [{
@@ -67,11 +67,14 @@ class Command extends BaseCommand {
             "signature": "-l, --latest",
             "description": "Get the latest transactions of a given wallet."
         }, {
-            "signature": "-C, --create",
+            "signature": "-T, --createTransaction",
             "description": "Create a transaction from the given Wallet (see also --txRecipient, --txMosaic, etc.)."
         }, {
             "signature": "-s, --cosign",
             "description": "Create a Signature Transaction for Multisignature Accounts."
+        }, {
+            "signature": "-C, --createWallet",
+            "description": "Create new Wallet compatible with DIM Transactions on the NEM Blockchain."
         }, {
             "signature": "-R, --raw",
             "description": "Get RAW JSON data displayed instead of the default Wallet Display."
@@ -106,6 +109,15 @@ class Command extends BaseCommand {
             "signature": "-H, --txHash <transactionHash>",
             "description": "Set this parameter only in Cosigner Mode (Signature Transactions). This should contain the hexadecimal representation of the Transaction Hash to be signed."
         }, {
+            "signature": "-W, --walletType <whichType>",
+            "description": "Set the wallet type to one of basic, premium or multisig. Wallet types are explained in the Wiki of this package."
+        }, {
+            "signature": "-p, --walletPassword <password>",
+            "description": "Set the wallet password for the process of Wallet creation. If you don't set one, you will be asked interactively."
+        }, {
+            "signature": "-N, --walletName <nameOfWallet>",
+            "description": "Set the wallet wallet name for your new wallet. This option defaults to 'my-dim-wallet'."
+        }, {
             "signature": "-S, --privateKey <hexadecimal>",
             "description": "Set the Private Key in hexadecimal format that will be used to *sign* your created transaction. Private Keys are never *stored* and never *sent* over any network."
         }];
@@ -115,9 +127,10 @@ class Command extends BaseCommand {
             "dim-cli wallet --file /home/alice/Downloads/alices_wallet.wlt --overview",
             "dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --watch",
             "dim-cli wallet --address TDWZ55R5VIHSH5WWK6CEGAIP7D35XVFZ3RU2S5UQ --export",
-            "dim-cli wallet --create --address NAMZG7CHE3JDSMYTKQNWSD5AAYGV5RGJ6PULC3PC --txRecipient ND7AQE2CLEFS7BJMQW6Y7PWNJGQTEU4WMML33INI --txMosaic dim:coin,nem:xem --txAmount 10,15 --privateKey xxx",
-            "dim-cli wallet --create --address TCTIMURL5LPKNJYF3OB3ACQVAXO3GK5IU2BJMPSU --txMultisig MULTISIG_PRIVATE_KEY --txRecipient TAEPNTY3Z6YJSU3AKM3UE7ZJUOO42OZBOX444H3N --txMosaic dim:coin --txAmount 15 --privateKey ISSUER_PRIVATE_KEY",
-            "dim-cli wallet --cosign --address TCTIMURL5LPKNJYF3OB3ACQVAXO3GK5IU2BJMPSU --privateKey COSIGNER_PRIVATE_KEY --txHash edbca728cb812cbbc22d243b99ed556ea7be0458bd960fbe7557eb6966733407"
+            "dim-cli wallet --createTransaction --address NAMZG7CHE3JDSMYTKQNWSD5AAYGV5RGJ6PULC3PC --txRecipient ND7AQE2CLEFS7BJMQW6Y7PWNJGQTEU4WMML33INI --txMosaic dim:coin,nem:xem --txAmount 10,15 --privateKey xxx",
+            "dim-cli wallet --createTransaction --address TCTIMURL5LPKNJYF3OB3ACQVAXO3GK5IU2BJMPSU --txMultisig MULTISIG_PRIVATE_KEY --txRecipient TAEPNTY3Z6YJSU3AKM3UE7ZJUOO42OZBOX444H3N --txMosaic dim:coin --txAmount 15 --privateKey ISSUER_PRIVATE_KEY",
+            "dim-cli wallet --cosign --address TCTIMURL5LPKNJYF3OB3ACQVAXO3GK5IU2BJMPSU --privateKey COSIGNER_PRIVATE_KEY --txHash edbca728cb812cbbc22d243b99ed556ea7be0458bd960fbe7557eb6966733407",
+            "dim-cli wallet --createWallet --password neverUseThisPassword --walletName dimWalletXX"
         ];
 
         this.wallet = undefined;
@@ -139,10 +152,29 @@ class Command extends BaseCommand {
 
         let address  = env.address;
         let hasFile = env.file !== undefined;
+        let addressSkipped = {
+            "createWallet" : true
+        };
+
+        // available sub commands
+        let subCommands = [
+            "overview",
+            "balances",
+            "latest",
+            "watch",
+            "createTransaction",
+            "cosign",
+            "createWallet"
+        ];
+
+        let hasSubCmd = subCommands.filter(function(cmd) {
+            if (env[cmd]) return true;
+            return false;
+        })
 
         this.wallet = this.loadWallet(env);
 
-        if (!this.wallet) {
+        if (this.wallet === false && (hasSubCmd.length && !env.createWallet)) {
             this.help();
             return this.end();
         }
@@ -161,12 +193,15 @@ class Command extends BaseCommand {
         else if (env.watch)
             // --watch
             return this.watchAddress(env, this.wallet.accounts["0"].address);
-        else if (env.create)
+        else if (env.createTransaction)
             // --create
             return this.createTransaction(env, this.wallet.accounts["0"].address);
         else if (env.cosign)
             // --cosign
             return this.createSignature(env, this.wallet.accounts["0"].address);
+        else if (env.createWallet)
+            // --createWallet
+            return this.createWallet(env);
 
         // the end-user has not specified `--overview`, `--balances` or 
         // `--latest` command line arguments.
@@ -198,20 +233,22 @@ class Command extends BaseCommand {
      * to the currently loaded Wallet.
      */
     addressMenu(env, address) {
-        let ov = function() { this.accountOverview(env, address); }.bind(this);
-        let ba = function() { this.accountBalances(env, address); }.bind(this);
-        let tx = function() { this.latestTransactions(env, address); }.bind(this);
-        let wa = function() { this.watchAddress(env, address); }.bind(this);
-        let cr = function() { this.createTransaction(env, address); }.bind(this);
-        let co = function() { this.createSignature(env, address); }.bind(this);
+        let overview = function() { this.accountOverview(env, address); }.bind(this);
+        let balances = function() { this.accountBalances(env, address); }.bind(this);
+        let latestTx = function() { this.latestTransactions(env, address); }.bind(this);
+        let watchAddr = function() { this.watchAddress(env, address); }.bind(this);
+        let createTx  = function() { this.createTransaction(env, address); }.bind(this);
+        let createSig = function() { this.createSignature(env, address); }.bind(this);
+        let createWlt = function() { this.createWallet(env); }.bind(this);
 
         this.displayMenu("Wallet Utilities", {
-            "0": {title: "Account Overview", callback: ov},
-            "1": {title: "Account Balances", callback: ba},
-            "2": {title: "Recent Transactions", callback: tx},
-            "3": {title: "Watch Address", callback: wa},
-            "4": {title: "Create Transaction", callback: cr},
-            "5": {title: "Create Multisig Signature", callback: co},
+            "0": {title: "Account Overview", callback: overview},
+            "1": {title: "Account Balances", callback: balances},
+            "2": {title: "Recent Transactions", callback: latestTx},
+            "3": {title: "Watch Address", callback: watchAddr},
+            "4": {title: "Create Transaction", callback: createTx},
+            "5": {title: "Create Multisig Signature", callback: createSig},
+            "6": {title: "Create Wallet", callback: createWlt},
         }, function() { this.end(); }.bind(this), true);
     }
 
@@ -301,6 +338,8 @@ class Command extends BaseCommand {
      * 
      * The overview includes wallet balances (mosaics), harvesting
      * status, latest transactions and other wallet informations
+     * 
+     * @return void
      */
     async accountOverview(argv, address) {
 
@@ -433,6 +472,11 @@ class Command extends BaseCommand {
      * 
      * This should include all mosaics available for the given
      * account.
+     * 
+     * No custom command parameters available for this command
+     * (only --address).
+     * 
+     * @return void
      */
     async accountBalances(argv, address) {
 
@@ -488,6 +532,11 @@ class Command extends BaseCommand {
     /**
      * This method will display a list of latest transactions
      * for the currently loaded Wallet.
+     * 
+     * No custom command parameters available for this command
+     * (only --address).
+     * 
+     * @return void
      */
     async latestTransactions(argv, address) {
 
@@ -592,11 +641,18 @@ class Command extends BaseCommand {
 
     /**
      * This method will ACTIVELY WATCH a given address.
-     * 
+     *
      * Running multiple of --watch commands at the same time
      * can bring performance issues. Please use with care.
+     *
+     * This will open Websocket connections and execute web hooks
+     * requests in case you specified any. Please read the Wiki for
+     * a better description of singular websocket connection parameters.
      * 
-     * This will open Websocket connections 
+     * No custom command parameters available for this command
+     * (only --address).
+     * 
+     * @return void
      */
     async watchAddress(argv, address) {
 
@@ -659,6 +715,11 @@ class Command extends BaseCommand {
      *
      * The signature transaction is then pushed onto the signatures stack
      * of the said transaction.
+     * 
+     * Custom command parameters:
+     * 
+     * - `--privateKey` : Specify the Co-Signer Private Key
+     * - `--txHash` : Specify the transaction hash of the transaction that needs co-signing.
      *
      * @param {*} argv 
      * @param {*} address 
@@ -706,10 +767,12 @@ class Command extends BaseCommand {
      * You should configure the call to this command using the command line
      * argument prefixed by "tx", that includes but is not limited to:
      * 
-     * - --txReceiver : NEM Address of the Transaction Receiver.
-     * - --txMessage : Content of the Transaction message (if any).
-     * - --txMosaic : Fully Qualified Mosaic Name
-     * - --txAmount : Set the amount for the last Mosaic *or XEM* in case no mosaic was defined
+     * Custom command parameters:
+     * 
+     * - `--txReceiver` : NEM Address of the Transaction Receiver.
+     * - `--txMessage` : Content of the Transaction message (if any).
+     * - `--txMosaic` : Fully Qualified Mosaic Name
+     * - `--txAmount` : Set the amount for the last Mosaic *or XEM* in case no mosaic was defined
      * 
      * Currently, if you wish to send `dim:coin`, you will need to call the following:
      * 
@@ -834,6 +897,53 @@ class Command extends BaseCommand {
             console.error("Could not publish transaction, error occured: ", e);
         }
 
+        return this.end();
+    }
+
+    /**
+     * 
+     * @param {*} env 
+     */
+    async createWallet(env) {
+        this.initAPI();
+
+        let walletType = env.walletType || "premium";
+        let walletPass = env.walletPassword || false;
+        let walletName = env.walletName || "my-dim-wallet";
+
+        if (!walletPass || ! walletPass.length) {
+            console.error("Please provide a password for the creation of your new Wallet. This password will be used to encrypt your private key.");
+            return this.end();
+        }
+
+        let wallet = null;
+        switch (walletType) {
+            default:
+            case "premium":
+                wallet = this.api.SDK.model.wallet.createPRNG(walletName, walletPass, this.api.networkId);
+                break;
+
+            case "basic":
+                if (walletPass.length < 32) {
+                    console.error("Please provide a password of minimum 32 characters to proceed to BASIC Wallet creation.");
+                    return this.end();
+                }
+
+                wallet = this.api.SDK.model.wallet.createBrain(walletName, walletPass, this.api.networkId);
+                break;
+        }
+
+        let rawJSON = JSON.stringify(wallet);
+        if (env.raw) {
+            let j = env.beautify ? this.beautifyJSON(rawJSON) : rawJSON;
+            console.log(j);
+            return this.end();
+        }
+
+        console.log("Wallet creation result: SUCCESS");
+        console.log("");
+        console.log(this.beautifyJSON(rawJSON));
+        console.log("");
         return this.end();
     }
 
