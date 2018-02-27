@@ -10,9 +10,27 @@ The command line tools suite is built as such that each script/command can be ru
 
 Feel free to contribute wherever you think you can help! #DIMlovers much appreciated!
 
+## Dependencies
+
+You will need a working copy of [Node.js (Download here)](https://nodejs.org/en/download/) to start working with our command line interface tools. You will need a version bigger or equal to **Node.js v8**. 
+
+In case you are using Linux Ubuntu, you would proceed as follows:
+
+```bash
+$ sudo apt install nodejs
+```
+
+Optionally, you can also install MongoDB in case you wish to store the data gathered with our CLI into a MongoDB database. This is an optional process and you may [proceed to the Download & Installation part](#download--installation) in case you wish to skip this.
+
+Installing mongodb only requires one command to be executed, creating the DIM database is optional and done automatically when the CLI starts the first time.
+
+```bash
+$ sudo apt get install mongodb
+```
+
 ## Download & Installation
 
-Run the following from the terminal:
+To install our DIM-cli, run the following from the terminal:
 
 ```bash
 $ git clone https://github.com/dimcoindev/dim-cli.git dim-cli/
