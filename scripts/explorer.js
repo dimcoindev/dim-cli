@@ -67,7 +67,7 @@ class Command extends BaseCommand {
             "description": "Search for Transactions in an Account and export."
         }, {
             "signature": "--filter <transactionTypes>",
-            "description": "Filter only given transaction types for the export. This argument can contain either of 'incoming', 'outgoing' and 'all' OR and integer in case you wish to filter by NEM transaction type (transaction.type property)."
+            "description": "Filter only given transaction types for the export. This argument can contain either of 'incoming', 'outgoing' and 'all' OR an integer in case you wish to filter by NEM transaction type (transaction.type property) OR a comma-separated list of mosaics to filter by mosaics content."
         }, {
             "signature": "-E, --export",
             "description": "Whether to export a file or display result in Terminal."

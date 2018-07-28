@@ -42,14 +42,14 @@ describe('BaseCommand Test Suite', function() {
     it("should set default values on init({})", function() {
         _Command.init({});
 
-        expect(_Command.network).to.equal("testnet");
-        expect(_Command.networkId).to.equal(-104);
+        expect(_Command.api.network).to.equal("testnet");
+        expect(_Command.api.networkId).to.equal(-104);
     });
 
     it("should set overwrite values with options passed to init()", function() {
         _Command.init({network: "mainnet"});
 
-        expect(_Command.network).to.equal("mainnet");
-        expect(_Command.networkId).to.equal(104);
+        expect(_Command.api.network).to.equal("mainnet");
+        expect(_Command.api.networkId).to.equal(104);
     });
 });

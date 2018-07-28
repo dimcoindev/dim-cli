@@ -107,6 +107,8 @@ cli.command("list")
         });
     }
     log("");
+
+    return ;
 });
 
 // Serve the DIM cli suite through a HTTP server
