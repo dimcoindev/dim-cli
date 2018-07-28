@@ -143,10 +143,11 @@ class DIMSearch {
      * in a NEM blockchain transaction.
      * 
      * @param {Object} transaction 
+     * @return {Object}
      */
     extractDimCurrencies(transaction) {
         if (! transaction.meta || ! transaction.transaction) {
-            throw new Error("Invalid TransactionMetaDataPair paramater in call to DIMExplorer.extractDimCurrencies().");
+            throw new Error("Invalid TransactionMetaDataPair paramater in call to DIMSearch.extractDimCurrencies().");
         }
 
         let meta = transaction.meta;
@@ -168,6 +169,88 @@ class DIMSearch {
         }
 
         return currencies;
+    }
+
+    /**
+     * This helper method retrieves potential currencies present
+     * in a NEM blockchain transaction.
+     * 
+     * The `filter` argument should be an array of mosaics FQMN
+     * filters. For example:
+     * 
+     * ["dim:*", "test:hello"]
+     * 
+     * OR 
+     * 
+     * ["dim:coin"]
+     * 
+     * @param {Object}  transaction 
+     * @param {Array}   filter
+     * @return {Object}
+     */
+    extractCurrencies(transaction, filter) {
+        if (! transaction.meta || ! transaction.transaction) {
+            throw new Error("Invalid TransactionMetaDataPair paramater in call to DIMSearch.extractCurrencies().");
+        }
+
+        let meta = transaction.meta;
+        let content = transaction.transaction;
+        let data = content.type === 4100 ? content.otherTrans : content;
+
+        if (data.type !== 257 || ! data.mosaics || ! data.mosaics.length) { // mosaic transfer only
+            return {};
+        }
+
+        // iterate through transaction mosaics to find any dim:* mosaics.
+        let currencies = {};
+        for (let i = 0, m = data.mosaics.length; i < m; i++) {
+            let mosaic = data.mosaics[i];
+            let name = this.api.SDK.utils.format.mosaicIdToName(mosaic.mosaicId);
+
+            if (! this.filterMosaic(filter, mosaic)) {
+                continue;
+            }
+
+            currencies[name] = mosaic.quantity;
+        }
+
+        return currencies;
+    }
+
+    /**
+     * Helper method to extract only a `filter` filtered mosaics.
+     * 
+     * Filters can contain wildcards and are applied on Fully Qualified
+     * Mosaic Names. 
+     * 
+     * @param {Array} filter 
+     * @param {Object} mosaicAttachment
+     * @param {Boolean}
+     */
+    filterMosaic(filter, mosaicAttachment) {
+        let attachmentFqmn = this.api.SDK.utils.format.mosaicIdToName(mosaicAttachment.mosaicId);
+        let filters = filter.split(",");
+
+        for (let i = 0; i < filters.length; i++) {
+            let selector = filters[i];
+            if (selector.indexOf("*") !== -1) {
+                // should only check before the wildcard.
+                let sel = selector.substr(0, selector.indexOf("*")).replace(/([\:\-\/])/g, "\\$1");
+
+                if (!sel || !sel.length) {
+                    // wildcard mosaics
+                    return true;
+                }
+
+                let reg = new RegExp("^" + sel + "(.*)+");
+                return reg.test(attachmentFqmn);
+            }
+            else if (selector === attachmentFqmn) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

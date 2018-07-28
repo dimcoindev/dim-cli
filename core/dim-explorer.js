@@ -212,6 +212,16 @@ class DIMExplorer {
     }
 
     /**
+     * This helper method lets you lookup the NEM Blockchain for mosaic
+     * transfers containing the said mosaics.
+     *
+     * @param {*} term 
+     */
+    async searchByMosaics(mosaics) {
+        return await this.finder.searchMosaicTransactions(mosaics);
+    }
+
+    /**
      * This helper method will read *all* transactions of a given
      * account and return an array with rows being transactions.
      * 
@@ -319,7 +329,7 @@ class DIMExplorer {
                 "recipient": realData.recipient,
                 "xemAmount": xemAmount,
                 "otherCurrencies": otherCurrencies.length ? otherCurrencies : "N/A",
-                "data": JSON.stringify(realData)
+                "data": JSON.stringify(transactions[i])
             };
 
             if (this.storage.transactions.hasOwnProperty(transactionId)) {
@@ -403,22 +413,31 @@ class DIMExplorer {
      * @return {Object}
      */
     filterBy_(filter, transactions) {
-        let valids = {"incoming": true, "outgoing": true, "all": true};
+        let valids = {
+            "incoming": true, 
+            "outgoing": true, 
+            "all": true,
+            "mosaics": true
+        };
 
-        // validate --filter (can be integer or string)
-        let dest = "all";
-        let type = parseInt(filter);
-        if (isNaN(type) && valids.hasOwnProperty(filter)) {
-            dest = filter;
-        }
+        let field = typeof filter === "string" ? (filter.indexOf(":") !== -1 ? "mosaics" : filter) :
+                    typeof filter === "number" ? "type" : "all";
+
+        // validate --filter (can be integer or string or object)
+        let type = field === "type" ? filter : undefined;
+        let isOp = filter === "incoming" || filter === "outgoing" || filter === "all";
 
         if (!isNaN(type)) {
             // filter by TYPE
             return this.filterByType_(type, transactions);
         }
-        else if (dest !== "all") {
+        else if (field === 'mosaics') {
+            // filter by mosaics attachments
+            return this.filterByMosaics_(filter, transactions);
+        }
+        else if (field !== "all") {
             // filter by OPERATOR
-            return this.filterByOperator_(dest, transactions);
+            return this.filterByOperator_(filter, transactions);
         }
 
         // filter defaults to "all"
@@ -485,6 +504,35 @@ class DIMExplorer {
             let op = transactions[id].operator; // INCOMING or OUTGOING
 
             if (operator !== op.toLowerCase()) {
+                delete transactions[id];
+            }
+        }
+
+        return transactions;
+    }
+
+    /**
+     * Helper method to filter transactions by a given `mosaics` array.
+     * 
+     * The `mosaics` object should contain keys representing Mosaics
+     * fully qualified name.
+     * 
+     * @param {String} operator 
+     * @param {Object} transactions 
+     * @return {Object}
+     */
+    filterByMosaics_(mosaics, transactions) {
+
+        // @see processTransactions()
+        let ids = Object.keys(transactions);
+
+        for (let i = 0, m = ids.length; i < m; i++) {
+            let id = ids[i];
+            let tx = JSON.parse(transactions[id].data);
+
+            let currencies = this.finder.extractCurrencies(tx, mosaics);
+
+            if (! Object.keys(currencies).length) {
                 delete transactions[id];
             }
         }

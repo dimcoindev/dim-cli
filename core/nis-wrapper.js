@@ -71,7 +71,7 @@ class NISWrapper {
      */
     connect() {
 
-        let network = "mainnet";
+        let network = "testnet";
         let port = this.argv.port ? parseInt(this.argv.port) : 7890;
         let node = this.argv.node && this.argv.node.length ? this.argv.node : "bigalice2.nem.ninja";
 
